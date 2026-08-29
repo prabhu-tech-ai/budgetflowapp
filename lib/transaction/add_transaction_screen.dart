@@ -15,8 +15,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  DateTime? _repeatEndDate;
   bool _isIncome = false;
   bool _isRepeating = false;
+  int _repeatEveryMonths = 1;
   Category? _selectedCategory;
 
   @override
@@ -61,6 +63,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (category != null) setState(() => _selectedCategory = category);
   }
 
+  Future<void> _pickRepeatEndDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _repeatEndDate ?? _selectedDate,
+      firstDate: _selectedDate,
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate != null) {
+      setState(() => _repeatEndDate = pickedDate);
+    }
+  }
+
   Future<void> _save() async {
     final amount = double.tryParse(_amountController.text.trim());
     if (!_canSave || amount == null) return;
@@ -74,6 +88,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ? title
               : _notesController.text.trim(),
       date: _selectedDate,
+      repeatUntil: _isRepeating ? (_repeatEndDate ?? _selectedDate) : null,
+      repeatEveryMonths: _repeatEveryMonths,
     );
     if (mounted) Navigator.pop(context);
   }
@@ -164,19 +180,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Repeat'),
             value: _isRepeating,
-            onChanged: (value) => setState(() => _isRepeating = value),
+            onChanged: (value) {
+              setState(() {
+                _isRepeating = value;
+                if (value && _repeatEndDate == null) {
+                  _repeatEndDate = _selectedDate;
+                }
+              });
+            },
           ),
           if (_isRepeating) ...[
             const SizedBox(height: 8),
-            const ListTile(
-              leading: Icon(Icons.repeat),
-              title: Text('Repeats every 1 month'),
-              trailing: Icon(Icons.chevron_right),
+            ListTile(
+              leading: const Icon(Icons.repeat),
+              title: Text('Repeats every $_repeatEveryMonths month${_repeatEveryMonths == 1 ? '' : 's'}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                setState(() {
+                  _repeatEveryMonths = _repeatEveryMonths == 1 ? 2 : 1;
+                });
+              },
             ),
-            const ListTile(
-              leading: Icon(Icons.calendar_month_outlined),
-              title: Text('End Date'),
-              trailing: Icon(Icons.chevron_right),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: Text(
+                _repeatEndDate == null
+                    ? 'End Date'
+                    : 'Ends on ${_formatDate(_repeatEndDate!)}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _pickRepeatEndDate,
             ),
           ],
         ],

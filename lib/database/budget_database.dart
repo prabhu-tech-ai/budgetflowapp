@@ -172,17 +172,44 @@ class BudgetDatabase extends _$BudgetDatabase {
     required int amountCents,
     String? note,
     required DateTime date,
-  }) => customInsert(
-    'INSERT INTO transactions (account_id, category_id, amount_cents, note, transaction_date) VALUES (?, ?, ?, ?, ?)',
-    variables: [
-      Variable(accountId),
-      Variable(categoryId),
-      Variable(amountCents),
-      Variable(note),
-      Variable(date),
-    ],
-    updates: {transactions},
-  );
+    DateTime? repeatUntil,
+    int repeatEveryMonths = 1,
+  }) async {
+    final startDate = DateTime(date.year, date.month, date.day);
+    final endDate =
+        repeatUntil == null
+            ? startDate
+            : DateTime(repeatUntil.year, repeatUntil.month, repeatUntil.day);
+    var nextDate = startDate;
+    var insertedId = 0;
+
+    while (!nextDate.isAfter(endDate)) {
+      insertedId = await into(transactions).insert(
+        TransactionsCompanion.insert(
+          accountId: accountId,
+          categoryId: Value(categoryId),
+          amountCents: amountCents,
+          note: Value(note),
+          transactionDate: nextDate,
+        ),
+      );
+      if (repeatUntil == null || repeatEveryMonths <= 0) break;
+      nextDate = _addMonths(nextDate, repeatEveryMonths);
+      if (nextDate.isBefore(startDate)) break;
+    }
+
+    return insertedId;
+  }
+
+  DateTime _addMonths(DateTime date, int months) {
+    final monthIndex = date.month - 1 + months;
+    final year = date.year + (monthIndex ~/ 12);
+    final month = (monthIndex % 12) + 1;
+    final day = date.day;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final safeDay = day > daysInMonth ? daysInMonth : day;
+    return DateTime(year, month, safeDay);
+  }
 }
 
 class TransactionWithDetails {

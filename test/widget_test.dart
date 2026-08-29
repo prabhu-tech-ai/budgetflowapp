@@ -44,6 +44,34 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
+  test('creates repeated monthly transactions until the selected end date', () async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    final categoryId = await database.addCategory(
+      name: 'Bills',
+      iconCodePoint: Icons.receipt.codePoint,
+    );
+
+    await database.addTransaction(
+      accountId: await database.defaultAccountId(),
+      categoryId: categoryId,
+      amountCents: -2500,
+      note: 'Rent',
+      date: DateTime(2026, 1, 15),
+      repeatUntil: DateTime(2026, 3, 15),
+      repeatEveryMonths: 1,
+    );
+
+    final rows = await database.select(database.transactions).get();
+    expect(rows.length, 3);
+    expect(rows.map((row) => row.transactionDate).toList(), [
+      DateTime(2026, 1, 15),
+      DateTime(2026, 2, 15),
+      DateTime(2026, 3, 15),
+    ]);
+  });
+
   testWidgets('adds a category from the categories list', (
     WidgetTester tester,
   ) async {
