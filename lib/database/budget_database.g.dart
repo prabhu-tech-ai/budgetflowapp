@@ -50,12 +50,25 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
     $customConstraints: 'NOT NULL DEFAULT 0',
     defaultValue: const CustomExpression('0'),
   );
+  static const VerificationMeta _iconCodePointMeta = const VerificationMeta(
+    'iconCodePoint',
+  );
+  late final GeneratedColumn<int> iconCodePoint = GeneratedColumn<int>(
+    'icon_code_point',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     name,
     currency,
     openingBalanceCents,
+    iconCodePoint,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -95,6 +108,15 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
         ),
       );
     }
+    if (data.containsKey('icon_code_point')) {
+      context.handle(
+        _iconCodePointMeta,
+        iconCodePoint.isAcceptableOrUnknown(
+          data['icon_code_point']!,
+          _iconCodePointMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -124,6 +146,11 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
             DriftSqlType.int,
             data['${effectivePrefix}opening_balance_cents'],
           )!,
+      iconCodePoint:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}icon_code_point'],
+          )!,
     );
   }
 
@@ -141,11 +168,13 @@ class Account extends DataClass implements Insertable<Account> {
   final String name;
   final String currency;
   final int openingBalanceCents;
+  final int iconCodePoint;
   const Account({
     required this.id,
     required this.name,
     required this.currency,
     required this.openingBalanceCents,
+    required this.iconCodePoint,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -154,6 +183,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['name'] = Variable<String>(name);
     map['currency'] = Variable<String>(currency);
     map['opening_balance_cents'] = Variable<int>(openingBalanceCents);
+    map['icon_code_point'] = Variable<int>(iconCodePoint);
     return map;
   }
 
@@ -163,6 +193,7 @@ class Account extends DataClass implements Insertable<Account> {
       name: Value(name),
       currency: Value(currency),
       openingBalanceCents: Value(openingBalanceCents),
+      iconCodePoint: Value(iconCodePoint),
     );
   }
 
@@ -178,6 +209,7 @@ class Account extends DataClass implements Insertable<Account> {
       openingBalanceCents: serializer.fromJson<int>(
         json['opening_balance_cents'],
       ),
+      iconCodePoint: serializer.fromJson<int>(json['icon_code_point']),
     );
   }
   @override
@@ -188,6 +220,7 @@ class Account extends DataClass implements Insertable<Account> {
       'name': serializer.toJson<String>(name),
       'currency': serializer.toJson<String>(currency),
       'opening_balance_cents': serializer.toJson<int>(openingBalanceCents),
+      'icon_code_point': serializer.toJson<int>(iconCodePoint),
     };
   }
 
@@ -196,11 +229,13 @@ class Account extends DataClass implements Insertable<Account> {
     String? name,
     String? currency,
     int? openingBalanceCents,
+    int? iconCodePoint,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
     currency: currency ?? this.currency,
     openingBalanceCents: openingBalanceCents ?? this.openingBalanceCents,
+    iconCodePoint: iconCodePoint ?? this.iconCodePoint,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -211,6 +246,10 @@ class Account extends DataClass implements Insertable<Account> {
           data.openingBalanceCents.present
               ? data.openingBalanceCents.value
               : this.openingBalanceCents,
+      iconCodePoint:
+          data.iconCodePoint.present
+              ? data.iconCodePoint.value
+              : this.iconCodePoint,
     );
   }
 
@@ -220,13 +259,15 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('currency: $currency, ')
-          ..write('openingBalanceCents: $openingBalanceCents')
+          ..write('openingBalanceCents: $openingBalanceCents, ')
+          ..write('iconCodePoint: $iconCodePoint')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, currency, openingBalanceCents);
+  int get hashCode =>
+      Object.hash(id, name, currency, openingBalanceCents, iconCodePoint);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -234,7 +275,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.id == this.id &&
           other.name == this.name &&
           other.currency == this.currency &&
-          other.openingBalanceCents == this.openingBalanceCents);
+          other.openingBalanceCents == this.openingBalanceCents &&
+          other.iconCodePoint == this.iconCodePoint);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -242,23 +284,27 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> name;
   final Value<String> currency;
   final Value<int> openingBalanceCents;
+  final Value<int> iconCodePoint;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.currency = const Value.absent(),
     this.openingBalanceCents = const Value.absent(),
+    this.iconCodePoint = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
     this.currency = const Value.absent(),
     this.openingBalanceCents = const Value.absent(),
+    this.iconCodePoint = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Account> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? currency,
     Expression<int>? openingBalanceCents,
+    Expression<int>? iconCodePoint,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -266,6 +312,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (currency != null) 'currency': currency,
       if (openingBalanceCents != null)
         'opening_balance_cents': openingBalanceCents,
+      if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
     });
   }
 
@@ -274,12 +321,14 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? name,
     Value<String>? currency,
     Value<int>? openingBalanceCents,
+    Value<int>? iconCodePoint,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       currency: currency ?? this.currency,
       openingBalanceCents: openingBalanceCents ?? this.openingBalanceCents,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
     );
   }
 
@@ -298,6 +347,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (openingBalanceCents.present) {
       map['opening_balance_cents'] = Variable<int>(openingBalanceCents.value);
     }
+    if (iconCodePoint.present) {
+      map['icon_code_point'] = Variable<int>(iconCodePoint.value);
+    }
     return map;
   }
 
@@ -307,7 +359,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('currency: $currency, ')
-          ..write('openingBalanceCents: $openingBalanceCents')
+          ..write('openingBalanceCents: $openingBalanceCents, ')
+          ..write('iconCodePoint: $iconCodePoint')
           ..write(')'))
         .toString();
   }
@@ -1061,6 +1114,7 @@ typedef $AccountsCreateCompanionBuilder =
       required String name,
       Value<String> currency,
       Value<int> openingBalanceCents,
+      Value<int> iconCodePoint,
     });
 typedef $AccountsUpdateCompanionBuilder =
     AccountsCompanion Function({
@@ -1068,6 +1122,7 @@ typedef $AccountsUpdateCompanionBuilder =
       Value<String> name,
       Value<String> currency,
       Value<int> openingBalanceCents,
+      Value<int> iconCodePoint,
     });
 
 final class $AccountsReferences
@@ -1118,6 +1173,11 @@ class $AccountsFilterComposer extends Composer<_$BudgetDatabase, Accounts> {
 
   ColumnFilters<int> get openingBalanceCents => $composableBuilder(
     column: $table.openingBalanceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get iconCodePoint => $composableBuilder(
+    column: $table.iconCodePoint,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1174,6 +1234,11 @@ class $AccountsOrderingComposer extends Composer<_$BudgetDatabase, Accounts> {
     column: $table.openingBalanceCents,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get iconCodePoint => $composableBuilder(
+    column: $table.iconCodePoint,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $AccountsAnnotationComposer extends Composer<_$BudgetDatabase, Accounts> {
@@ -1195,6 +1260,11 @@ class $AccountsAnnotationComposer extends Composer<_$BudgetDatabase, Accounts> {
 
   GeneratedColumn<int> get openingBalanceCents => $composableBuilder(
     column: $table.openingBalanceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get iconCodePoint => $composableBuilder(
+    column: $table.iconCodePoint,
     builder: (column) => column,
   );
 
@@ -1256,11 +1326,13 @@ class $AccountsTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> currency = const Value.absent(),
                 Value<int> openingBalanceCents = const Value.absent(),
+                Value<int> iconCodePoint = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
                 currency: currency,
                 openingBalanceCents: openingBalanceCents,
+                iconCodePoint: iconCodePoint,
               ),
           createCompanionCallback:
               ({
@@ -1268,11 +1340,13 @@ class $AccountsTableManager
                 required String name,
                 Value<String> currency = const Value.absent(),
                 Value<int> openingBalanceCents = const Value.absent(),
+                Value<int> iconCodePoint = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
                 currency: currency,
                 openingBalanceCents: openingBalanceCents,
+                iconCodePoint: iconCodePoint,
               ),
           withReferenceMapper:
               (p0) =>

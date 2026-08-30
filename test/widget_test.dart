@@ -60,7 +60,8 @@ void main() {
       note: 'Rent',
       date: DateTime(2026, 1, 15),
       repeatUntil: DateTime(2026, 3, 15),
-      repeatEveryMonths: 1,
+      repeatEvery: 1,
+      repeatUnit: 'month',
     );
 
     final rows = await database.select(database.transactions).get();

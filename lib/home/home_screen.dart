@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/currency.dart';
 import '../database/budget_database.dart';
 
 class HomeScreen extends StatefulWidget {

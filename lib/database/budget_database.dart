@@ -20,8 +20,11 @@ class BudgetDatabase extends _$BudgetDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 4) await _seedDefaults();
       if (from < 5) {
-        await m.customStatement(
-          'ALTER TABLE accounts ADD COLUMN icon_code_point INTEGER NOT NULL DEFAULT 0',
+        await m.alterTable(
+          TableMigration(
+            accounts,
+            newColumns: [accounts.iconCodePoint],
+          ),
         );
       }
     },
@@ -29,13 +32,13 @@ class BudgetDatabase extends _$BudgetDatabase {
 
   Future<void> _seedDefaults() async {
     final existingAccount = await select(accounts).getSingleOrNull();
-    final accountId =
-        existingAccount?.id ??
-        await customInsert(
-          "INSERT INTO accounts (name) VALUES ('Default Account')",
-          variables: [],
-          updates: {accounts},
-        );
+    if (existingAccount == null) {
+      await customInsert(
+        "INSERT INTO accounts (name) VALUES ('Default Account')",
+        variables: [],
+        updates: {accounts},
+      );
+    }
     for (final category in _defaultCategories) {
       final exists =
           await (select(categories)..where(

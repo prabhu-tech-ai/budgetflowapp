@@ -29,7 +29,10 @@ class SettingsScreen extends StatelessWidget {
       _SettingsOption(
         icon: Icons.account_balance_wallet_outlined,
         title: 'Add/Manage Account',
-        subtitle: selectedAccountId == null ? 'No account selected' : 'Selected account: ${selectedAccountId}',
+        subtitle:
+            selectedAccountId == null
+                ? 'No account selected'
+                : 'Selected account: $selectedAccountId',
         onTap: () => _showAccountManager(context),
       ),
       _SettingsOption(
@@ -119,11 +122,14 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _showAccountManager(BuildContext context) async {
+    final rootContext = context;
     final accounts = await database.watchAccountsWithIcons().first;
+    if (!rootContext.mounted) return;
+
     final selected = await showModalBottomSheet<int>(
-      context: context,
+      context: rootContext,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -148,24 +154,24 @@ class SettingsScreen extends StatelessWidget {
                         account.id == selectedAccountId
                             ? const Icon(Icons.check)
                             : null,
-                    onTap: () => Navigator.pop(context, account.id),
+                    onTap: () => Navigator.pop(sheetContext, account.id),
                   ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: () async {
-                      final result = await _showAddAccountDialog(context);
-                      if (result != null) {
-                        final id = await database.addAccount(
-                          name: result['name'] as String,
-                          currency: result['currency'] as String,
-                          iconCodePoint: result['iconCodePoint'] as int,
-                        );
-                        if (context.mounted) {
-                          Navigator.pop(context, id);
-                        }
-                      }
+                      final result = await _showAddAccountDialog(rootContext);
+                      if (result == null) return;
+
+                      final id = await database.addAccount(
+                        name: result['name'] as String,
+                        currency: result['currency'] as String,
+                        iconCodePoint: result['iconCodePoint'] as int,
+                      );
+
+                      if (!rootContext.mounted) return;
+                      Navigator.pop(rootContext, id);
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Add Account'),
@@ -178,6 +184,7 @@ class SettingsScreen extends StatelessWidget {
       },
     );
 
+    if (!rootContext.mounted) return;
     if (selected != null) {
       onAccountChanged(selected);
     }

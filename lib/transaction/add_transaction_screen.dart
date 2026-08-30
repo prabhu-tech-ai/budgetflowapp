@@ -52,9 +52,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             );
 
-    if (mounted) {
-      setState(() => _selectedCategory = category);
-    }
+    if (!mounted) return;
+    setState(() => _selectedCategory = category);
   }
 
   @override
@@ -76,6 +75,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   Future<void> _pickCategory() async {
     final categories = await widget.database.watchCategories().first;
+    if (!mounted) return;
     final category = await showModalBottomSheet<Category>(
       context: context,
       builder:
@@ -96,6 +96,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
           ),
     );
+    if (!mounted) return;
     if (category != null) setState(() => _selectedCategory = category);
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'categories/categories_screen.dart';
-import 'core/currency.dart';
 import 'database/budget_database.dart';
 import 'home/home_screen.dart';
 import 'setting/settings_screen.dart';
