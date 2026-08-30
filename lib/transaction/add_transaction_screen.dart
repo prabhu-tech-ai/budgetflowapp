@@ -2,10 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../database/budget_database.dart';
 
+enum RepeatPeriod { day, week, month }
+
+class _RepeatSettings {
+  const _RepeatSettings(this.every, this.period);
+
+  final int every;
+  final RepeatPeriod period;
+}
+
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key, required this.database});
+  const AddTransactionScreen({
+    super.key,
+    required this.database,
+    this.selectedAccountId,
+  });
 
   final BudgetDatabase database;
+  final int? selectedAccountId;
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -18,8 +32,30 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime? _repeatEndDate;
   bool _isIncome = false;
   bool _isRepeating = false;
-  int _repeatEveryMonths = 1;
+  int _repeatEvery = 1;
+  RepeatPeriod _repeatPeriod = RepeatPeriod.month;
   Category? _selectedCategory;
+
+  Future<void> _setDefaultCategoryForIncomeType(bool isIncome) async {
+    final categories = await widget.database.watchCategories().first;
+    final defaultCategoryName = isIncome ? 'Salary' : null;
+    final category =
+        defaultCategoryName == null
+            ? null
+            : categories.firstWhere(
+              (item) => item.name == defaultCategoryName,
+              orElse: () => categories.firstWhere(
+                (item) => item.name == 'Income',
+                orElse: () => categories.firstWhere(
+                  (item) => item.name == 'General',
+                ),
+              ),
+            );
+
+    if (mounted) {
+      setState(() => _selectedCategory = category);
+    }
+  }
 
   @override
   void dispose() {
@@ -63,6 +99,95 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (category != null) setState(() => _selectedCategory = category);
   }
 
+  Future<void> _pickRepeatSettings() async {
+    final result = await showModalBottomSheet<_RepeatSettings>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        var localEvery = _repeatEvery;
+        var localPeriod = _repeatPeriod;
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: StatefulBuilder(
+              builder: (context, setLocalState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Repeat every',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List.generate(12, (index) {
+                        final value = index + 1;
+                        final selected = value == localEvery;
+                        return ChoiceChip(
+                          label: Text('$value'),
+                          selected: selected,
+                          onSelected: (_) {
+                            setLocalState(() => localEvery = value);
+                          },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Repeat period',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<RepeatPeriod>(
+                      segments: const [
+                        ButtonSegment(value: RepeatPeriod.day, label: Text('Day')),
+                        ButtonSegment(value: RepeatPeriod.week, label: Text('Week')),
+                        ButtonSegment(value: RepeatPeriod.month, label: Text('Month')),
+                      ],
+                      selected: {localPeriod},
+                      onSelectionChanged: (value) {
+                        setLocalState(() => localPeriod = value.first);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(
+                          context,
+                          _RepeatSettings(localEvery, localPeriod),
+                        ),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _repeatEvery = result.every;
+        _repeatPeriod = result.period;
+        if (_repeatEndDate == null || _repeatEndDate!.isBefore(_selectedDate)) {
+          _repeatEndDate = _defaultRepeatEndDate(
+            _selectedDate,
+            result.period,
+            result.every,
+          );
+        }
+      });
+    }
+  }
+
   Future<void> _pickRepeatEndDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -79,8 +204,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final amount = double.tryParse(_amountController.text.trim());
     if (!_canSave || amount == null) return;
     final title = _selectedCategory?.name ?? 'General';
+    final repeatEndDate =
+        _isRepeating
+            ? (_repeatEndDate ?? _defaultRepeatEndDate(_selectedDate, _repeatPeriod, _repeatEvery))
+            : null;
+    final accountId = widget.selectedAccountId ?? await widget.database.defaultAccountId();
     await widget.database.addTransaction(
-      accountId: await widget.database.defaultAccountId(),
+      accountId: accountId,
       categoryId: _selectedCategory?.id,
       amountCents: (_isIncome ? amount : -amount).round() * 100,
       note:
@@ -88,8 +218,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ? title
               : _notesController.text.trim(),
       date: _selectedDate,
-      repeatUntil: _isRepeating ? (_repeatEndDate ?? _selectedDate) : null,
-      repeatEveryMonths: _repeatEveryMonths,
+      repeatUntil: repeatEndDate,
+      repeatEvery: _repeatEvery,
+      repeatUnit: _repeatPeriod.name,
     );
     if (mounted) Navigator.pop(context);
   }
@@ -119,8 +250,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ButtonSegment(value: true, label: Text('Income')),
             ],
             selected: {_isIncome},
-            onSelectionChanged:
-                (value) => setState(() => _isIncome = value.first),
+            onSelectionChanged: (value) async {
+              final selectedIncome = value.first;
+              setState(() => _isIncome = selectedIncome);
+              await _setDefaultCategoryForIncomeType(selectedIncome);
+            },
           ),
           const SizedBox(height: 24),
           Text(
@@ -184,7 +318,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               setState(() {
                 _isRepeating = value;
                 if (value && _repeatEndDate == null) {
-                  _repeatEndDate = _selectedDate;
+                  _repeatEndDate = _defaultRepeatEndDate(
+                    _selectedDate,
+                    _repeatPeriod,
+                    _repeatEvery,
+                  );
                 }
               });
             },
@@ -193,13 +331,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.repeat),
-              title: Text('Repeats every $_repeatEveryMonths month${_repeatEveryMonths == 1 ? '' : 's'}'),
+              title: Text(
+                'Repeats every $_repeatEvery ${_repeatPeriod.name}${_repeatEvery == 1 ? '' : 's'}',
+              ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                setState(() {
-                  _repeatEveryMonths = _repeatEveryMonths == 1 ? 2 : 1;
-                });
-              },
+              onTap: _pickRepeatSettings,
             ),
             ListTile(
               leading: const Icon(Icons.calendar_month_outlined),
@@ -220,6 +356,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   bool get _canSave {
     final amount = double.tryParse(_amountController.text.trim());
     return amount != null && amount > 0 && _selectedCategory != null;
+  }
+
+  DateTime _defaultRepeatEndDate(
+    DateTime startDate,
+    RepeatPeriod period,
+    int every,
+  ) {
+    switch (period) {
+      case RepeatPeriod.day:
+        return startDate.add(Duration(days: every));
+      case RepeatPeriod.week:
+        return startDate.add(Duration(days: every * 7));
+      case RepeatPeriod.month:
+        return DateTime(
+          startDate.year,
+          startDate.month + every,
+          startDate.day,
+        );
+    }
   }
 
   String _formatDate(DateTime date) =>

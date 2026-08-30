@@ -72,6 +72,58 @@ void main() {
     ]);
   });
 
+  testWidgets('changes month and filters transactions by selected month', (
+    WidgetTester tester,
+  ) async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await database.close();
+    });
+
+    final accountId = await database.defaultAccountId();
+    await database.addTransaction(
+      accountId: accountId,
+      categoryId: null,
+      amountCents: -1500,
+      note: 'August expense',
+      date: DateTime(2026, 8, 10),
+    );
+    await database.addTransaction(
+      accountId: accountId,
+      categoryId: null,
+      amountCents: -3000,
+      note: 'September expense',
+      date: DateTime(2026, 9, 12),
+    );
+
+    await tester.pumpWidget(MyApp(database: database));
+    await tester.pumpAndSettle();
+
+    expect(find.text('August'), findsOneWidget);
+    expect(find.text('August expense'), findsOneWidget);
+    expect(find.text('September expense'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sep'), findsOneWidget);
+    expect(find.text('September expense'), findsOneWidget);
+    expect(find.text('August expense'), findsNothing);
+  });
+
+  test('seeds default income categories for income transactions', () async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    final categories = await database.watchCategories().first;
+    final names = categories.map((category) => category.name).toSet();
+
+    expect(names.contains('Salary'), isTrue);
+    expect(names.contains('Income'), isTrue);
+  });
+
   testWidgets('adds a category from the categories list', (
     WidgetTester tester,
   ) async {

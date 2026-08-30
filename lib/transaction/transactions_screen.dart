@@ -4,21 +4,42 @@ import '../database/budget_database.dart';
 import 'add_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
-  const TransactionsScreen({super.key, required this.database});
+  const TransactionsScreen({
+    super.key,
+    required this.database,
+    this.currencyCode = 'INR',
+    this.selectedAccountId,
+  });
 
   final BudgetDatabase database;
+  final String currencyCode;
+  final int? selectedAccountId;
 
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
+  DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
   Future<void> _openAddTransaction() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => AddTransactionScreen(database: widget.database),
+        builder: (_) => AddTransactionScreen(
+          database: widget.database,
+          selectedAccountId: widget.selectedAccountId,
+        ),
       ),
     );
+  }
+
+  void _changeMonth(int offset) {
+    setState(() {
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + offset,
+      );
+    });
   }
 
   @override
@@ -26,7 +47,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return StreamBuilder<List<TransactionWithDetails>>(
       stream: widget.database.watchTransactions(),
       builder: (context, snapshot) {
-        final transactions = snapshot.data ?? <TransactionWithDetails>[];
+        final allTransactions = snapshot.data ?? <TransactionWithDetails>[];
+        final transactions =
+            allTransactions.where((item) {
+              final date = item.transaction.transactionDate;
+              final matchesAccount =
+                  widget.selectedAccountId == null ||
+                  item.transaction.accountId == widget.selectedAccountId;
+              return matchesAccount &&
+                  date.year == _selectedMonth.year &&
+                  date.month == _selectedMonth.month;
+            }).toList();
+
         final income = transactions
             .where((item) => item.transaction.amountCents > 0)
             .fold<int>(0, (sum, item) => sum + item.transaction.amountCents);
@@ -38,7 +70,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             );
         return Column(
           children: [
-            _MonthHeader(onAdd: _openAddTransaction),
+            _MonthHeader(
+              selectedMonth: _selectedMonth,
+              onPrevious: () => _changeMonth(-1),
+              onNext: () => _changeMonth(1),
+              onAdd: _openAddTransaction,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Column(
@@ -75,14 +112,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '₹ ${(income / 100).toStringAsFixed(0)}',
+                        formatCurrencyAmount(income / 100, widget.currencyCode),
                         style: const TextStyle(
                           color: Colors.green,
                           fontSize: 18,
                         ),
                       ),
                       Text(
-                        '₹ ${(expenses / 100).toStringAsFixed(0)}',
+                        formatCurrencyAmount(expenses / 100, widget.currencyCode),
                         style: const TextStyle(color: Colors.red, fontSize: 18),
                       ),
                     ],
@@ -118,7 +155,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '₹ ${(item.transaction.amountCents.abs() / 100).toStringAsFixed(0)}',
+                          formatCurrencyAmount(
+                            item.transaction.amountCents.abs() / 100,
+                            widget.currencyCode,
+                          ),
                           style: TextStyle(
                             color:
                                 item.transaction.amountCents >= 0
@@ -160,8 +200,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 }
 
 class _MonthHeader extends StatelessWidget {
-  const _MonthHeader({required this.onAdd});
+  const _MonthHeader({
+    required this.selectedMonth,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onAdd,
+  });
 
+  final DateTime selectedMonth;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
   final VoidCallback onAdd;
 
   @override
@@ -176,19 +224,19 @@ class _MonthHeader extends StatelessWidget {
             icon: const Icon(Icons.person_outline, color: Colors.white),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: onPrevious,
             icon: const Icon(Icons.chevron_left, color: Colors.white),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
               child: Text(
-                'August',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+                _months[selectedMonth.month - 1],
+                style: const TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: onNext,
             icon: const Icon(Icons.chevron_right, color: Colors.white),
           ),
           IconButton(
@@ -199,4 +247,19 @@ class _MonthHeader extends StatelessWidget {
       ),
     );
   }
+
+  static const _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 }

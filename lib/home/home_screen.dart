@@ -3,9 +3,16 @@ import 'package:flutter/material.dart';
 import '../database/budget_database.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.database});
+  const HomeScreen({
+    super.key,
+    required this.database,
+    this.currencyCode = 'INR',
+    this.selectedAccountId,
+  });
 
   final BudgetDatabase database;
+  final String currencyCode;
+  final int? selectedAccountId;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,13 +26,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _month = DateTime(DateTime.now().year, DateTime.now().month);
-    _overview = widget.database.loadOverview(_month);
+    _overview = widget.database.loadOverview(
+      _month,
+      accountId: widget.selectedAccountId,
+    );
   }
 
   void _changeMonth(int offset) {
     setState(() {
       _month = DateTime(_month.year, _month.month + offset);
-      _overview = widget.database.loadOverview(_month);
+      _overview = widget.database.loadOverview(
+        _month,
+        accountId: widget.selectedAccountId,
+      );
     });
   }
 
@@ -52,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (overview == null) return const SizedBox.shrink();
         return _OverviewContent(
           overview: overview,
+          currencyCode: widget.currencyCode,
           onPreviousMonth: () => _changeMonth(-1),
           onNextMonth: () => _changeMonth(1),
         );
@@ -65,11 +79,13 @@ class _OverviewContent extends StatelessWidget {
     required this.overview,
     required this.onPreviousMonth,
     required this.onNextMonth,
+    required this.currencyCode,
   });
 
   final BudgetOverview overview;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +95,7 @@ class _OverviewContent extends StatelessWidget {
           child: _OverviewHeader(
             month: overview.month,
             balance: overview.remainingBalance,
+            currencyCode: currencyCode,
             onPreviousMonth: onPreviousMonth,
             onNextMonth: onNextMonth,
           ),
@@ -87,13 +104,14 @@ class _OverviewContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              _TotalsRow(overview: overview),
+              _TotalsRow(overview: overview, currencyCode: currencyCode),
               const SizedBox(height: 20),
               _BreakdownCard(
                 title: 'Income Overview',
                 color: Colors.green,
                 items: overview.incomeBreakdown,
                 total: overview.income,
+                currencyCode: currencyCode,
               ),
               const SizedBox(height: 16),
               _BreakdownCard(
@@ -101,6 +119,7 @@ class _OverviewContent extends StatelessWidget {
                 color: Colors.deepOrange,
                 items: overview.expenseBreakdown,
                 total: overview.expenses,
+                currencyCode: currencyCode,
               ),
             ]),
           ),
@@ -116,12 +135,14 @@ class _OverviewHeader extends StatelessWidget {
     required this.balance,
     required this.onPreviousMonth,
     required this.onNextMonth,
+    required this.currencyCode,
   });
 
   final DateTime month;
   final double balance;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +189,7 @@ class _OverviewHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            '₹ ${balance.toStringAsFixed(0)}',
+            formatCurrencyAmount(balance, currencyCode),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 36,
@@ -191,9 +212,10 @@ class _OverviewHeader extends StatelessWidget {
 }
 
 class _TotalsRow extends StatelessWidget {
-  const _TotalsRow({required this.overview});
+  const _TotalsRow({required this.overview, required this.currencyCode});
 
   final BudgetOverview overview;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +226,7 @@ class _TotalsRow extends StatelessWidget {
             title: 'Income',
             amount: overview.income,
             color: Colors.green,
+            currencyCode: currencyCode,
           ),
         ),
         const SizedBox(width: 12),
@@ -212,6 +235,7 @@ class _TotalsRow extends StatelessWidget {
             title: 'Expenses',
             amount: overview.expenses,
             color: Colors.deepOrange,
+            currencyCode: currencyCode,
           ),
         ),
       ],
@@ -224,11 +248,13 @@ class _TotalCard extends StatelessWidget {
     required this.title,
     required this.amount,
     required this.color,
+    required this.currencyCode,
   });
 
   final String title;
   final double amount;
   final Color color;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +267,7 @@ class _TotalCard extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              '₹ ${amount.toStringAsFixed(0)}',
+              formatCurrencyAmount(amount, currencyCode),
               style: TextStyle(
                 color: color,
                 fontSize: 20,
@@ -261,12 +287,14 @@ class _BreakdownCard extends StatelessWidget {
     required this.color,
     required this.items,
     required this.total,
+    required this.currencyCode,
   });
 
   final String title;
   final Color color;
   final List<BudgetBreakdown> items;
   final double total;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +309,12 @@ class _BreakdownCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             for (final item in items)
-              _BreakdownRow(item: item, total: total, color: color),
+              _BreakdownRow(
+                item: item,
+                total: total,
+                color: color,
+                currencyCode: currencyCode,
+              ),
           ],
         ),
       ),
@@ -294,11 +327,13 @@ class _BreakdownRow extends StatelessWidget {
     required this.item,
     required this.total,
     required this.color,
+    required this.currencyCode,
   });
 
   final BudgetBreakdown item;
   final double total;
   final Color color;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +353,7 @@ class _BreakdownRow extends StatelessWidget {
                 child: Text(item.name, style: const TextStyle(fontSize: 16)),
               ),
               Text(
-                '₹ ${item.amount.toStringAsFixed(0)}',
+                formatCurrencyAmount(item.amount, currencyCode),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],

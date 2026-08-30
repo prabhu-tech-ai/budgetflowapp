@@ -9,7 +9,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     : super(executor ?? driftDatabase(name: 'budgetflow'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -19,6 +19,11 @@ class BudgetDatabase extends _$BudgetDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 4) await _seedDefaults();
+      if (from < 5) {
+        await m.customStatement(
+          'ALTER TABLE accounts ADD COLUMN icon_code_point INTEGER NOT NULL DEFAULT 0',
+        );
+      }
     },
   );
 
@@ -53,6 +58,43 @@ class BudgetDatabase extends _$BudgetDatabase {
 
   Stream<List<Account>> watchAccounts() => select(accounts).watch();
 
+  Future<List<AccountSummary>> loadAccounts() async {
+    final rows = await customSelect(
+      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point FROM accounts ORDER BY id',
+      readsFrom: {accounts},
+    ).get();
+    return rows
+        .map(
+          (row) => AccountSummary(
+            id: row.data['id'] as int,
+            name: row.data['name'] as String,
+            currency: row.data['currency'] as String? ?? 'INR',
+            openingBalanceCents: row.data['opening_balance_cents'] as int? ?? 0,
+            iconCodePoint: row.data['icon_code_point'] as int? ?? 0,
+          ),
+        )
+        .toList();
+  }
+
+  Stream<List<AccountSummary>> watchAccountsWithIcons() {
+    return customSelect(
+      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point FROM accounts ORDER BY id',
+      readsFrom: {accounts},
+    ).watch().map(
+      (rows) => rows
+          .map(
+            (row) => AccountSummary(
+              id: row.data['id'] as int,
+              name: row.data['name'] as String,
+              currency: row.data['currency'] as String? ?? 'INR',
+              openingBalanceCents: row.data['opening_balance_cents'] as int? ?? 0,
+              iconCodePoint: row.data['icon_code_point'] as int? ?? 0,
+            ),
+          )
+          .toList(),
+    );
+  }
+
   Future<int> defaultAccountId() async =>
       (await select(accounts).getSingle()).id;
 
@@ -85,7 +127,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     );
   }
 
-  Stream<BudgetOverview> watchOverview(DateTime month) {
+  Stream<BudgetOverview> watchOverview(DateTime month, {int? accountId}) {
     final start = DateTime(month.year, month.month);
     final end = DateTime(month.year, month.month + 1);
     final query =
@@ -95,8 +137,11 @@ class BudgetDatabase extends _$BudgetDatabase {
               categories.id.equalsExp(transactions.categoryId),
             ),
           ])
-          ..where(transactions.transactionDate.isBetweenValues(start, end))
-          ..orderBy([OrderingTerm.desc(transactions.transactionDate)]);
+          ..where(transactions.transactionDate.isBetweenValues(start, end));
+    if (accountId != null) {
+      query.where(transactions.accountId.equals(accountId));
+    }
+    query.orderBy([OrderingTerm.desc(transactions.transactionDate)]);
     return query.watch().map((rows) {
       final amounts = rows.map(
         (row) => row.readTable(transactions).amountCents,
@@ -117,8 +162,8 @@ class BudgetDatabase extends _$BudgetDatabase {
     });
   }
 
-  Future<BudgetOverview> loadOverview(DateTime month) =>
-      watchOverview(month).first;
+  Future<BudgetOverview> loadOverview(DateTime month, {int? accountId}) =>
+      watchOverview(month, accountId: accountId).first;
 
   List<BudgetBreakdown> _groupBreakdown(
     List<TypedResult> rows, {
@@ -141,9 +186,19 @@ class BudgetDatabase extends _$BudgetDatabase {
     return totals.values.toList()..sort((a, b) => b.amount.compareTo(a.amount));
   }
 
-  Future<int> addAccount(String name) => customInsert(
-    'INSERT INTO accounts (name) VALUES (?)',
-    variables: [Variable(name)],
+  Future<int> addAccount({
+    required String name,
+    String currency = 'INR',
+    int openingBalanceCents = 0,
+    int iconCodePoint = 0xe7fe,
+  }) => customInsert(
+    'INSERT INTO accounts (name, currency, opening_balance_cents, icon_code_point) VALUES (?, ?, ?, ?)',
+    variables: [
+      Variable(name),
+      Variable(currency),
+      Variable(openingBalanceCents),
+      Variable(iconCodePoint),
+    ],
     updates: {accounts},
   );
 
@@ -173,13 +228,17 @@ class BudgetDatabase extends _$BudgetDatabase {
     String? note,
     required DateTime date,
     DateTime? repeatUntil,
-    int repeatEveryMonths = 1,
+    int repeatEvery = 1,
+    String repeatUnit = 'month',
   }) async {
     final startDate = DateTime(date.year, date.month, date.day);
+    final normalizedRepeatEvery = repeatEvery <= 0 ? 1 : repeatEvery;
+    final normalizedRepeatUnit = repeatUnit.toLowerCase();
     final endDate =
         repeatUntil == null
             ? startDate
             : DateTime(repeatUntil.year, repeatUntil.month, repeatUntil.day);
+
     var nextDate = startDate;
     var insertedId = 0;
 
@@ -193,12 +252,30 @@ class BudgetDatabase extends _$BudgetDatabase {
           transactionDate: nextDate,
         ),
       );
-      if (repeatUntil == null || repeatEveryMonths <= 0) break;
-      nextDate = _addMonths(nextDate, repeatEveryMonths);
+
+      if (repeatUntil == null) break;
+      nextDate = _advanceDate(
+        nextDate,
+        normalizedRepeatEvery,
+        normalizedRepeatUnit,
+      );
       if (nextDate.isBefore(startDate)) break;
     }
 
     return insertedId;
+  }
+
+  DateTime _advanceDate(DateTime date, int repeatEvery, String repeatUnit) {
+    switch (repeatUnit) {
+      case 'day':
+        return date.add(Duration(days: repeatEvery));
+      case 'week':
+        return date.add(Duration(days: repeatEvery * 7));
+      case 'month':
+        return _addMonths(date, repeatEvery);
+      default:
+        return date.add(Duration(days: repeatEvery));
+    }
   }
 
   DateTime _addMonths(DateTime date, int months) {
@@ -210,6 +287,22 @@ class BudgetDatabase extends _$BudgetDatabase {
     final safeDay = day > daysInMonth ? daysInMonth : day;
     return DateTime(year, month, safeDay);
   }
+}
+
+class AccountSummary {
+  const AccountSummary({
+    required this.id,
+    required this.name,
+    required this.currency,
+    required this.openingBalanceCents,
+    required this.iconCodePoint,
+  });
+
+  final int id;
+  final String name;
+  final String currency;
+  final int openingBalanceCents;
+  final int iconCodePoint;
 }
 
 class TransactionWithDetails {
@@ -271,4 +364,6 @@ const _defaultCategories = [
   _DefaultCategory('Kids', 0xe7fb),
   _DefaultCategory('Travel', 0xe539),
   _DefaultCategory('Shopping', 0xe8cc),
+  _DefaultCategory('Salary', 0xe7fe),
+  _DefaultCategory('Income', 0xe7fe),
 ];
