@@ -21,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
   final String currencyCode;
   final ValueChanged<String> onCurrencyChanged;
   final int? selectedAccountId;
-  final ValueChanged<int> onAccountChanged;
+  final ValueChanged<int?> onAccountChanged;
 
   @override
   Widget build(BuildContext context) {

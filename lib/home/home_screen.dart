@@ -7,11 +7,13 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.database,
+    required this.onAccountChanged,
     this.currencyCode = 'INR',
     this.selectedAccountId,
   });
 
   final BudgetDatabase database;
+  final ValueChanged<int?> onAccountChanged;
   final String currencyCode;
   final int? selectedAccountId;
 
@@ -33,6 +35,68 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedAccountId != widget.selectedAccountId) {
+      _overview = widget.database.loadOverview(
+        _month,
+        accountId: widget.selectedAccountId,
+      );
+    }
+  }
+
+  Future<void> _showAccountPicker(BuildContext context) async {
+    final accounts = await widget.database.watchAccountsWithIcons().first;
+    if (!context.mounted) return;
+
+    final selected = await showModalBottomSheet<Object?>(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const ListTile(
+                title: Text(
+                  'Select Account',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('All Accounts'),
+                trailing:
+                    widget.selectedAccountId == null
+                        ? const Icon(Icons.check)
+                        : null,
+                onTap: () => Navigator.pop(sheetContext, _allAccounts),
+              ),
+              for (final account in accounts)
+                ListTile(
+                  leading: Icon(
+                    IconData(
+                      account.iconCodePoint,
+                      fontFamily: 'MaterialIcons',
+                    ),
+                  ),
+                  title: Text(account.name),
+                  trailing:
+                      account.id == widget.selectedAccountId
+                          ? const Icon(Icons.check)
+                          : null,
+                  onTap: () => Navigator.pop(sheetContext, account.id),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!context.mounted || selected == null) return;
+    widget.onAccountChanged(selected == _allAccounts ? null : selected as int);
+  }
+
   void _changeMonth(int offset) {
     setState(() {
       _month = DateTime(_month.year, _month.month + offset);
@@ -48,7 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return FutureBuilder<BudgetOverview>(
       future: _overview,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+          !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
@@ -69,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
           currencyCode: widget.currencyCode,
           onPreviousMonth: () => _changeMonth(-1),
           onNextMonth: () => _changeMonth(1),
+          onAccountChanged: () => _showAccountPicker(context),
         );
       },
     );
@@ -81,12 +147,14 @@ class _OverviewContent extends StatelessWidget {
     required this.onPreviousMonth,
     required this.onNextMonth,
     required this.currencyCode,
+    required this.onAccountChanged,
   });
 
   final BudgetOverview overview;
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
   final String currencyCode;
+  final VoidCallback onAccountChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +167,7 @@ class _OverviewContent extends StatelessWidget {
             currencyCode: currencyCode,
             onPreviousMonth: onPreviousMonth,
             onNextMonth: onNextMonth,
+            onAccountChanged: onAccountChanged,
           ),
         ),
         SliverPadding(
@@ -137,6 +206,7 @@ class _OverviewHeader extends StatelessWidget {
     required this.onPreviousMonth,
     required this.onNextMonth,
     required this.currencyCode,
+    required this.onAccountChanged,
   });
 
   final DateTime month;
@@ -144,6 +214,7 @@ class _OverviewHeader extends StatelessWidget {
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
   final String currencyCode;
+  final VoidCallback onAccountChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +229,6 @@ class _OverviewHeader extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -199,7 +269,7 @@ class _OverviewHeader extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           TextButton.icon(
-            onPressed: () {},
+            onPressed: onAccountChanged,
             icon: const Icon(Icons.expand_more, color: Colors.white),
             label: const Text(
               'All Accounts',
@@ -211,6 +281,8 @@ class _OverviewHeader extends StatelessWidget {
     );
   }
 }
+
+const _allAccounts = Object();
 
 class _TotalsRow extends StatelessWidget {
   const _TotalsRow({required this.overview, required this.currencyCode});

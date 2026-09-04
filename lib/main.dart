@@ -47,7 +47,7 @@ class _MyAppState extends State<MyApp> {
     setState(() => _currencyCode = code);
   }
 
-  void _setSelectedAccount(int id) {
+  void _setSelectedAccount(int? id) {
     setState(() => _selectedAccountId = id);
   }
 
@@ -93,7 +93,7 @@ class BudgetShell extends StatefulWidget {
   final String currencyCode;
   final ValueChanged<String> onCurrencyChanged;
   final int? selectedAccountId;
-  final ValueChanged<int> onAccountChanged;
+  final ValueChanged<int?> onAccountChanged;
 
   @override
   State<BudgetShell> createState() => _BudgetShellState();
@@ -102,12 +102,13 @@ class BudgetShell extends StatefulWidget {
 class _BudgetShellState extends State<BudgetShell> {
   int _selectedIndex = 0;
 
-  late final _tabs = <_BudgetTabData>[
+  List<_BudgetTabData> get _tabs => <_BudgetTabData>[
     _BudgetTabData(
       HomeScreen(
         database: widget.database,
         currencyCode: widget.currencyCode,
         selectedAccountId: widget.selectedAccountId,
+          onAccountChanged: widget.onAccountChanged,
       ),
     ),
     _BudgetTabData(
