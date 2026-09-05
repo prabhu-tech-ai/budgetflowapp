@@ -164,10 +164,19 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
 }
 
 class Account extends DataClass implements Insertable<Account> {
+  /// COLUMN: accounts.id - Unique account identifier.
   final int id;
+
+  /// COLUMN: accounts.name - User-visible account name, such as Cash or Bank.
   final String name;
+
+  /// COLUMN: accounts.currency - ISO-style currency code used by the account.
   final String currency;
+
+  /// COLUMN: accounts.opening_balance_cents - Starting balance in the smallest currency unit.
   final int openingBalanceCents;
+
+  /// COLUMN: accounts.icon_code_point - Material Icons code point for the account icon.
   final int iconCodePoint;
   const Account({
     required this.id,
@@ -497,9 +506,16 @@ class Categories extends Table with TableInfo<Categories, Category> {
 }
 
 class Category extends DataClass implements Insertable<Category> {
+  /// COLUMN: categories.id - Unique category identifier.
   final int id;
+
+  /// COLUMN: categories.name - User-visible category name.
   final String name;
+
+  /// COLUMN: categories.icon_code_point - Material Icons code point for the category icon.
   final int iconCodePoint;
+
+  /// COLUMN: categories.is_default - Whether the category is a built-in default.
   final bool isDefault;
   const Category({
     required this.id,
@@ -740,6 +756,52 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
         requiredDuringInsert: true,
         $customConstraints: 'NOT NULL',
       );
+  static const VerificationMeta _repeatSeriesIdMeta = const VerificationMeta(
+    'repeatSeriesId',
+  );
+  late final GeneratedColumn<int> repeatSeriesId = GeneratedColumn<int>(
+    'repeat_series_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _repeatUntilMeta = const VerificationMeta(
+    'repeatUntil',
+  );
+  late final GeneratedColumn<DateTime> repeatUntil = GeneratedColumn<DateTime>(
+    'repeat_until',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _repeatEveryMeta = const VerificationMeta(
+    'repeatEvery',
+  );
+  late final GeneratedColumn<int> repeatEvery = GeneratedColumn<int>(
+    'repeat_every',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 1',
+    defaultValue: const CustomExpression('1'),
+  );
+  static const VerificationMeta _repeatUnitMeta = const VerificationMeta(
+    'repeatUnit',
+  );
+  late final GeneratedColumn<String> repeatUnit = GeneratedColumn<String>(
+    'repeat_unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'month\'',
+    defaultValue: const CustomExpression('\'month\''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -748,6 +810,10 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     amountCents,
     note,
     transactionDate,
+    repeatSeriesId,
+    repeatUntil,
+    repeatEvery,
+    repeatUnit,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -806,6 +872,39 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
     } else if (isInserting) {
       context.missing(_transactionDateMeta);
     }
+    if (data.containsKey('repeat_series_id')) {
+      context.handle(
+        _repeatSeriesIdMeta,
+        repeatSeriesId.isAcceptableOrUnknown(
+          data['repeat_series_id']!,
+          _repeatSeriesIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('repeat_until')) {
+      context.handle(
+        _repeatUntilMeta,
+        repeatUntil.isAcceptableOrUnknown(
+          data['repeat_until']!,
+          _repeatUntilMeta,
+        ),
+      );
+    }
+    if (data.containsKey('repeat_every')) {
+      context.handle(
+        _repeatEveryMeta,
+        repeatEvery.isAcceptableOrUnknown(
+          data['repeat_every']!,
+          _repeatEveryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('repeat_unit')) {
+      context.handle(
+        _repeatUnitMeta,
+        repeatUnit.isAcceptableOrUnknown(data['repeat_unit']!, _repeatUnitMeta),
+      );
+    }
     return context;
   }
 
@@ -843,6 +942,24 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
             DriftSqlType.dateTime,
             data['${effectivePrefix}transaction_date'],
           )!,
+      repeatSeriesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}repeat_series_id'],
+      ),
+      repeatUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}repeat_until'],
+      ),
+      repeatEvery:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}repeat_every'],
+          )!,
+      repeatUnit:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}repeat_unit'],
+          )!,
     );
   }
 
@@ -856,12 +973,35 @@ class Transactions extends Table with TableInfo<Transactions, Transaction> {
 }
 
 class Transaction extends DataClass implements Insertable<Transaction> {
+  /// COLUMN: transactions.id - Unique transaction identifier.
   final int id;
+
+  /// COLUMN: transactions.account_id - Account that owns this transaction.
   final int accountId;
+
+  /// COLUMN: transactions.category_id - Optional category for grouping this transaction.
   final int? categoryId;
+
+  /// COLUMN: transactions.amount_cents - Signed amount in the smallest currency unit; income is positive.
   final int amountCents;
+
+  /// COLUMN: transactions.note - Optional note or description for the transaction.
   final String? note;
+
+  /// COLUMN: transactions.transaction_date - Date and time when the transaction occurred.
   final DateTime transactionDate;
+
+  /// COLUMN: transactions.repeat_series_id - Shared identifier for occurrences in one repeating series.
+  final int? repeatSeriesId;
+
+  /// COLUMN: transactions.repeat_until - Last date included in the repeating series.
+  final DateTime? repeatUntil;
+
+  /// COLUMN: transactions.repeat_every - Number of periods between repeating occurrences.
+  final int repeatEvery;
+
+  /// COLUMN: transactions.repeat_unit - Period unit for repeating occurrences.
+  final String repeatUnit;
   const Transaction({
     required this.id,
     required this.accountId,
@@ -869,6 +1009,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     required this.amountCents,
     this.note,
     required this.transactionDate,
+    this.repeatSeriesId,
+    this.repeatUntil,
+    required this.repeatEvery,
+    required this.repeatUnit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -883,6 +1027,14 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       map['note'] = Variable<String>(note);
     }
     map['transaction_date'] = Variable<DateTime>(transactionDate);
+    if (!nullToAbsent || repeatSeriesId != null) {
+      map['repeat_series_id'] = Variable<int>(repeatSeriesId);
+    }
+    if (!nullToAbsent || repeatUntil != null) {
+      map['repeat_until'] = Variable<DateTime>(repeatUntil);
+    }
+    map['repeat_every'] = Variable<int>(repeatEvery);
+    map['repeat_unit'] = Variable<String>(repeatUnit);
     return map;
   }
 
@@ -897,6 +1049,16 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       amountCents: Value(amountCents),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       transactionDate: Value(transactionDate),
+      repeatSeriesId:
+          repeatSeriesId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(repeatSeriesId),
+      repeatUntil:
+          repeatUntil == null && nullToAbsent
+              ? const Value.absent()
+              : Value(repeatUntil),
+      repeatEvery: Value(repeatEvery),
+      repeatUnit: Value(repeatUnit),
     );
   }
 
@@ -912,6 +1074,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       amountCents: serializer.fromJson<int>(json['amount_cents']),
       note: serializer.fromJson<String?>(json['note']),
       transactionDate: serializer.fromJson<DateTime>(json['transaction_date']),
+      repeatSeriesId: serializer.fromJson<int?>(json['repeat_series_id']),
+      repeatUntil: serializer.fromJson<DateTime?>(json['repeat_until']),
+      repeatEvery: serializer.fromJson<int>(json['repeat_every']),
+      repeatUnit: serializer.fromJson<String>(json['repeat_unit']),
     );
   }
   @override
@@ -924,6 +1090,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'amount_cents': serializer.toJson<int>(amountCents),
       'note': serializer.toJson<String?>(note),
       'transaction_date': serializer.toJson<DateTime>(transactionDate),
+      'repeat_series_id': serializer.toJson<int?>(repeatSeriesId),
+      'repeat_until': serializer.toJson<DateTime?>(repeatUntil),
+      'repeat_every': serializer.toJson<int>(repeatEvery),
+      'repeat_unit': serializer.toJson<String>(repeatUnit),
     };
   }
 
@@ -934,6 +1104,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     int? amountCents,
     Value<String?> note = const Value.absent(),
     DateTime? transactionDate,
+    Value<int?> repeatSeriesId = const Value.absent(),
+    Value<DateTime?> repeatUntil = const Value.absent(),
+    int? repeatEvery,
+    String? repeatUnit,
   }) => Transaction(
     id: id ?? this.id,
     accountId: accountId ?? this.accountId,
@@ -941,6 +1115,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     amountCents: amountCents ?? this.amountCents,
     note: note.present ? note.value : this.note,
     transactionDate: transactionDate ?? this.transactionDate,
+    repeatSeriesId:
+        repeatSeriesId.present ? repeatSeriesId.value : this.repeatSeriesId,
+    repeatUntil: repeatUntil.present ? repeatUntil.value : this.repeatUntil,
+    repeatEvery: repeatEvery ?? this.repeatEvery,
+    repeatUnit: repeatUnit ?? this.repeatUnit,
   );
   Transaction copyWithCompanion(TransactionsCompanion data) {
     return Transaction(
@@ -955,6 +1134,16 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           data.transactionDate.present
               ? data.transactionDate.value
               : this.transactionDate,
+      repeatSeriesId:
+          data.repeatSeriesId.present
+              ? data.repeatSeriesId.value
+              : this.repeatSeriesId,
+      repeatUntil:
+          data.repeatUntil.present ? data.repeatUntil.value : this.repeatUntil,
+      repeatEvery:
+          data.repeatEvery.present ? data.repeatEvery.value : this.repeatEvery,
+      repeatUnit:
+          data.repeatUnit.present ? data.repeatUnit.value : this.repeatUnit,
     );
   }
 
@@ -966,7 +1155,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('categoryId: $categoryId, ')
           ..write('amountCents: $amountCents, ')
           ..write('note: $note, ')
-          ..write('transactionDate: $transactionDate')
+          ..write('transactionDate: $transactionDate, ')
+          ..write('repeatSeriesId: $repeatSeriesId, ')
+          ..write('repeatUntil: $repeatUntil, ')
+          ..write('repeatEvery: $repeatEvery, ')
+          ..write('repeatUnit: $repeatUnit')
           ..write(')'))
         .toString();
   }
@@ -979,6 +1172,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     amountCents,
     note,
     transactionDate,
+    repeatSeriesId,
+    repeatUntil,
+    repeatEvery,
+    repeatUnit,
   );
   @override
   bool operator ==(Object other) =>
@@ -989,7 +1186,11 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.categoryId == this.categoryId &&
           other.amountCents == this.amountCents &&
           other.note == this.note &&
-          other.transactionDate == this.transactionDate);
+          other.transactionDate == this.transactionDate &&
+          other.repeatSeriesId == this.repeatSeriesId &&
+          other.repeatUntil == this.repeatUntil &&
+          other.repeatEvery == this.repeatEvery &&
+          other.repeatUnit == this.repeatUnit);
 }
 
 class TransactionsCompanion extends UpdateCompanion<Transaction> {
@@ -999,6 +1200,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<int> amountCents;
   final Value<String?> note;
   final Value<DateTime> transactionDate;
+  final Value<int?> repeatSeriesId;
+  final Value<DateTime?> repeatUntil;
+  final Value<int> repeatEvery;
+  final Value<String> repeatUnit;
   const TransactionsCompanion({
     this.id = const Value.absent(),
     this.accountId = const Value.absent(),
@@ -1006,6 +1211,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.amountCents = const Value.absent(),
     this.note = const Value.absent(),
     this.transactionDate = const Value.absent(),
+    this.repeatSeriesId = const Value.absent(),
+    this.repeatUntil = const Value.absent(),
+    this.repeatEvery = const Value.absent(),
+    this.repeatUnit = const Value.absent(),
   });
   TransactionsCompanion.insert({
     this.id = const Value.absent(),
@@ -1014,6 +1223,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     required int amountCents,
     this.note = const Value.absent(),
     required DateTime transactionDate,
+    this.repeatSeriesId = const Value.absent(),
+    this.repeatUntil = const Value.absent(),
+    this.repeatEvery = const Value.absent(),
+    this.repeatUnit = const Value.absent(),
   }) : accountId = Value(accountId),
        amountCents = Value(amountCents),
        transactionDate = Value(transactionDate);
@@ -1024,6 +1237,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? amountCents,
     Expression<String>? note,
     Expression<DateTime>? transactionDate,
+    Expression<int>? repeatSeriesId,
+    Expression<DateTime>? repeatUntil,
+    Expression<int>? repeatEvery,
+    Expression<String>? repeatUnit,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1032,6 +1249,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (amountCents != null) 'amount_cents': amountCents,
       if (note != null) 'note': note,
       if (transactionDate != null) 'transaction_date': transactionDate,
+      if (repeatSeriesId != null) 'repeat_series_id': repeatSeriesId,
+      if (repeatUntil != null) 'repeat_until': repeatUntil,
+      if (repeatEvery != null) 'repeat_every': repeatEvery,
+      if (repeatUnit != null) 'repeat_unit': repeatUnit,
     });
   }
 
@@ -1042,6 +1263,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Value<int>? amountCents,
     Value<String?>? note,
     Value<DateTime>? transactionDate,
+    Value<int?>? repeatSeriesId,
+    Value<DateTime?>? repeatUntil,
+    Value<int>? repeatEvery,
+    Value<String>? repeatUnit,
   }) {
     return TransactionsCompanion(
       id: id ?? this.id,
@@ -1050,6 +1275,10 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       amountCents: amountCents ?? this.amountCents,
       note: note ?? this.note,
       transactionDate: transactionDate ?? this.transactionDate,
+      repeatSeriesId: repeatSeriesId ?? this.repeatSeriesId,
+      repeatUntil: repeatUntil ?? this.repeatUntil,
+      repeatEvery: repeatEvery ?? this.repeatEvery,
+      repeatUnit: repeatUnit ?? this.repeatUnit,
     );
   }
 
@@ -1074,6 +1303,18 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (transactionDate.present) {
       map['transaction_date'] = Variable<DateTime>(transactionDate.value);
     }
+    if (repeatSeriesId.present) {
+      map['repeat_series_id'] = Variable<int>(repeatSeriesId.value);
+    }
+    if (repeatUntil.present) {
+      map['repeat_until'] = Variable<DateTime>(repeatUntil.value);
+    }
+    if (repeatEvery.present) {
+      map['repeat_every'] = Variable<int>(repeatEvery.value);
+    }
+    if (repeatUnit.present) {
+      map['repeat_unit'] = Variable<String>(repeatUnit.value);
+    }
     return map;
   }
 
@@ -1085,7 +1326,11 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('categoryId: $categoryId, ')
           ..write('amountCents: $amountCents, ')
           ..write('note: $note, ')
-          ..write('transactionDate: $transactionDate')
+          ..write('transactionDate: $transactionDate, ')
+          ..write('repeatSeriesId: $repeatSeriesId, ')
+          ..write('repeatUntil: $repeatUntil, ')
+          ..write('repeatEvery: $repeatEvery, ')
+          ..write('repeatUnit: $repeatUnit')
           ..write(')'))
         .toString();
   }
@@ -1698,6 +1943,10 @@ typedef $TransactionsCreateCompanionBuilder =
       required int amountCents,
       Value<String?> note,
       required DateTime transactionDate,
+      Value<int?> repeatSeriesId,
+      Value<DateTime?> repeatUntil,
+      Value<int> repeatEvery,
+      Value<String> repeatUnit,
     });
 typedef $TransactionsUpdateCompanionBuilder =
     TransactionsCompanion Function({
@@ -1707,6 +1956,10 @@ typedef $TransactionsUpdateCompanionBuilder =
       Value<int> amountCents,
       Value<String?> note,
       Value<DateTime> transactionDate,
+      Value<int?> repeatSeriesId,
+      Value<DateTime?> repeatUntil,
+      Value<int> repeatEvery,
+      Value<String> repeatUnit,
     });
 
 final class $TransactionsReferences
@@ -1778,6 +2031,26 @@ class $TransactionsFilterComposer
 
   ColumnFilters<DateTime> get transactionDate => $composableBuilder(
     column: $table.transactionDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get repeatSeriesId => $composableBuilder(
+    column: $table.repeatSeriesId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get repeatUntil => $composableBuilder(
+    column: $table.repeatUntil,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get repeatEvery => $composableBuilder(
+    column: $table.repeatEvery,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get repeatUnit => $composableBuilder(
+    column: $table.repeatUnit,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1857,6 +2130,26 @@ class $TransactionsOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get repeatSeriesId => $composableBuilder(
+    column: $table.repeatSeriesId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get repeatUntil => $composableBuilder(
+    column: $table.repeatUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get repeatEvery => $composableBuilder(
+    column: $table.repeatEvery,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get repeatUnit => $composableBuilder(
+    column: $table.repeatUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $AccountsOrderingComposer get accountId {
     final $AccountsOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -1926,6 +2219,26 @@ class $TransactionsAnnotationComposer
 
   GeneratedColumn<DateTime> get transactionDate => $composableBuilder(
     column: $table.transactionDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get repeatSeriesId => $composableBuilder(
+    column: $table.repeatSeriesId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get repeatUntil => $composableBuilder(
+    column: $table.repeatUntil,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get repeatEvery => $composableBuilder(
+    column: $table.repeatEvery,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get repeatUnit => $composableBuilder(
+    column: $table.repeatUnit,
     builder: (column) => column,
   );
 
@@ -2010,6 +2323,10 @@ class $TransactionsTableManager
                 Value<int> amountCents = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> transactionDate = const Value.absent(),
+                Value<int?> repeatSeriesId = const Value.absent(),
+                Value<DateTime?> repeatUntil = const Value.absent(),
+                Value<int> repeatEvery = const Value.absent(),
+                Value<String> repeatUnit = const Value.absent(),
               }) => TransactionsCompanion(
                 id: id,
                 accountId: accountId,
@@ -2017,6 +2334,10 @@ class $TransactionsTableManager
                 amountCents: amountCents,
                 note: note,
                 transactionDate: transactionDate,
+                repeatSeriesId: repeatSeriesId,
+                repeatUntil: repeatUntil,
+                repeatEvery: repeatEvery,
+                repeatUnit: repeatUnit,
               ),
           createCompanionCallback:
               ({
@@ -2026,6 +2347,10 @@ class $TransactionsTableManager
                 required int amountCents,
                 Value<String?> note = const Value.absent(),
                 required DateTime transactionDate,
+                Value<int?> repeatSeriesId = const Value.absent(),
+                Value<DateTime?> repeatUntil = const Value.absent(),
+                Value<int> repeatEvery = const Value.absent(),
+                Value<String> repeatUnit = const Value.absent(),
               }) => TransactionsCompanion.insert(
                 id: id,
                 accountId: accountId,
@@ -2033,6 +2358,10 @@ class $TransactionsTableManager
                 amountCents: amountCents,
                 note: note,
                 transactionDate: transactionDate,
+                repeatSeriesId: repeatSeriesId,
+                repeatUntil: repeatUntil,
+                repeatEvery: repeatEvery,
+                repeatUnit: repeatUnit,
               ),
           withReferenceMapper:
               (p0) =>

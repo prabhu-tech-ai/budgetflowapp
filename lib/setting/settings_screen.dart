@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/currency.dart';
 import '../database/budget_database.dart';
@@ -55,24 +57,26 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.share_outlined,
         title: 'Share App',
         subtitle: 'Share with friends and family',
-        onTap: () {},
+        onTap: () => _shareApp(context),
       ),
       _SettingsOption(
         icon: Icons.feedback_outlined,
         title: 'Send Feedback',
         subtitle: 'Tell us what you think',
-        onTap: () {},
+        onTap: () => _openFeedback(context),
       ),
       _SettingsOption(
         icon: Icons.star_outline,
         title: 'Rate App',
         subtitle: 'Leave a rating in the store',
-        onTap: () {},
+        onTap: () => _rateApp(context),
       ),
     ];
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        centerTitle: true,
         title: const Text('Settings'),
       ),
       body: ListView.separated(
@@ -91,6 +95,33 @@ class SettingsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _shareApp(BuildContext context) async {
+    await Share.share(
+      'Try BudgetFlow, a simple app for tracking income and expenses.',
+      subject: 'BudgetFlow',
+    );
+  }
+
+  Future<void> _openFeedback(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+    );
+  }
+
+  Future<void> _rateApp(BuildContext context) async {
+    final storeUri = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.example.budgetflow',
+    );
+    if (await canLaunchUrl(storeUri)) {
+      await launchUrl(storeUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unable to open the app store')),
     );
   }
 
@@ -251,6 +282,90 @@ class SettingsScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class FeedbackScreen extends StatefulWidget {
+  const FeedbackScreen({super.key});
+
+  @override
+  State<FeedbackScreen> createState() => _FeedbackScreenState();
+}
+
+class _FeedbackScreenState extends State<FeedbackScreen> {
+  final _commentController = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendFeedback() async {
+    final comment = _commentController.text.trim();
+    if (comment.isEmpty || _isSending) return;
+
+    setState(() => _isSending = true);
+    final emailUri = Uri(
+      scheme: 'mailto',
+      path: 'prabhu.tech.ai@gmail.com',
+      queryParameters: {
+        'subject': 'BudgetFlow feedback',
+        'body': comment,
+      },
+    );
+    try {
+      if (!await canLaunchUrl(emailUri)) {
+        throw StateError('No email app is available');
+      }
+      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open email: $error')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Send Feedback'),
+        actions: [
+          TextButton(
+            onPressed: _isSending ? null : _sendFeedback,
+            child: Text(_isSending ? 'Opening...' : 'Send'),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'Your feedback',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _commentController,
+            autofocus: true,
+            minLines: 6,
+            maxLines: 10,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Write your comment',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
     );
   }
 }

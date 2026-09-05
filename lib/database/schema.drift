@@ -37,5 +37,13 @@ CREATE TABLE transactions (
   -- COLUMN: transactions.note - Optional note or description for the transaction.
   note TEXT,
   -- COLUMN: transactions.transaction_date - Date and time when the transaction occurred.
-  transaction_date DATETIME NOT NULL
+  transaction_date DATETIME NOT NULL,
+  -- COLUMN: transactions.repeat_series_id - Shared identifier for occurrences in one repeating series.
+  repeat_series_id INTEGER,
+  -- COLUMN: transactions.repeat_until - Last date included in the repeating series.
+  repeat_until DATETIME,
+  -- COLUMN: transactions.repeat_every - Number of periods between repeating occurrences.
+  repeat_every INTEGER NOT NULL DEFAULT 1,
+  -- COLUMN: transactions.repeat_unit - Period unit for repeating occurrences.
+  repeat_unit TEXT NOT NULL DEFAULT 'month'
 );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/currency.dart';
 import '../database/budget_database.dart';
 import 'add_transaction_screen.dart';
+import 'edit_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({
@@ -318,6 +319,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         const Icon(Icons.chevron_right, color: Colors.grey),
                       ],
                     ),
+                    onTap: () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => EditTransactionScreen(
+                            database: widget.database,
+                            transaction: item.transaction,
+                            category: item.category,
+                            account: item.account,
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),

@@ -36,18 +36,24 @@ class _CategoriesListScreenState extends State<CategoriesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Category>>(
-      future: _categories,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Unable to load categories: ${snapshot.error}'),
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return ListView(
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: const Text('Categories'),
+      ),
+      body: FutureBuilder<List<Category>>(
+        future: _categories,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Unable to load categories: ${snapshot.error}'),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               FilledButton.tonalIcon(
@@ -75,7 +81,8 @@ class _CategoriesListScreenState extends State<CategoriesListScreen> {
                 ),
             ],
           );
-      },
+        },
+      ),
     );
   }
 }

@@ -9,7 +9,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     : super(executor ?? driftDatabase(name: 'budgetflow'));
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -24,6 +24,19 @@ class BudgetDatabase extends _$BudgetDatabase {
           TableMigration(
             accounts,
             newColumns: [accounts.iconCodePoint],
+          ),
+        );
+      }
+      if (from < 6) {
+        await m.alterTable(
+          TableMigration(
+            transactions,
+            newColumns: [
+              transactions.repeatSeriesId,
+              transactions.repeatUntil,
+              transactions.repeatEvery,
+              transactions.repeatUnit,
+            ],
           ),
         );
       }
@@ -250,6 +263,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     DateTime? repeatUntil,
     int repeatEvery = 1,
     String repeatUnit = 'month',
+    int? repeatSeriesId,
   }) async {
     final startDate = DateTime(date.year, date.month, date.day);
     final normalizedRepeatEvery = repeatEvery <= 0 ? 1 : repeatEvery;
@@ -258,6 +272,9 @@ class BudgetDatabase extends _$BudgetDatabase {
         repeatUntil == null
             ? startDate
             : DateTime(repeatUntil.year, repeatUntil.month, repeatUntil.day);
+        final seriesId = repeatUntil == null
+          ? null
+          : (repeatSeriesId ?? DateTime.now().microsecondsSinceEpoch);
 
     var nextDate = startDate;
     var insertedId = 0;
@@ -270,6 +287,10 @@ class BudgetDatabase extends _$BudgetDatabase {
           amountCents: amountCents,
           note: Value(note),
           transactionDate: nextDate,
+          repeatSeriesId: Value(seriesId),
+          repeatUntil: Value(repeatUntil),
+          repeatEvery: Value(normalizedRepeatEvery),
+          repeatUnit: Value(normalizedRepeatUnit),
         ),
       );
 
@@ -283,6 +304,69 @@ class BudgetDatabase extends _$BudgetDatabase {
     }
 
     return insertedId;
+  }
+
+  Future<void> updateTransaction({
+    required int id,
+    required int accountId,
+    int? categoryId,
+    required int amountCents,
+    String? note,
+    required DateTime date,
+    int? repeatSeriesId,
+    DateTime? repeatUntil,
+    int repeatEvery = 1,
+    String repeatUnit = 'month',
+  }) async {
+    await (update(transactions)..where((item) => item.id.equals(id))).write(
+      TransactionsCompanion(
+        accountId: Value(accountId),
+        categoryId: Value(categoryId),
+        amountCents: Value(amountCents),
+        note: Value(note),
+        transactionDate: Value(date),
+        repeatSeriesId: Value(repeatSeriesId),
+        repeatUntil: Value(repeatUntil),
+        repeatEvery: Value(repeatEvery),
+        repeatUnit: Value(repeatUnit),
+      ),
+    );
+  }
+
+  Future<void> updateFutureTransactions({
+    required int repeatSeriesId,
+    required DateTime fromDate,
+    required int accountId,
+    int? categoryId,
+    required int amountCents,
+    String? note,
+    DateTime? repeatUntil,
+    required int repeatEvery,
+    required String repeatUnit,
+  }) async {
+    await transaction(() async {
+      await (delete(transactions)
+            ..where(
+              (item) =>
+                  item.repeatSeriesId.equals(repeatSeriesId) &
+                  item.transactionDate.isBiggerThanValue(fromDate),
+            ))
+          .go();
+      final nextDate = _advanceDate(fromDate, repeatEvery, repeatUnit);
+      if (repeatUntil != null && !nextDate.isAfter(repeatUntil)) {
+        await addTransaction(
+          accountId: accountId,
+          categoryId: categoryId,
+          amountCents: amountCents,
+          note: note,
+          date: nextDate,
+          repeatUntil: repeatUntil,
+          repeatEvery: repeatEvery,
+          repeatUnit: repeatUnit,
+          repeatSeriesId: repeatSeriesId,
+        );
+      }
+    });
   }
 
   DateTime _advanceDate(DateTime date, int repeatEvery, String repeatUnit) {

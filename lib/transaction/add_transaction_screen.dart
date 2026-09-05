@@ -289,6 +289,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final categoryLabel = _selectedCategory?.name ?? 'Choose Category';
     final amount = double.tryParse(_amountController.text.trim());
     final canSave = amount != null && amount > 0;
+    final fieldColor = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.pop(context)),
@@ -322,7 +323,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
           const Divider(height: 32),
           ListTile(
-            tileColor: Colors.white,
+            tileColor: fieldColor,
             leading: const Icon(Icons.calendar_month_outlined),
             title: Text(_formatDate(_selectedDate)),
             onTap: _pickDate,
@@ -341,7 +342,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
           const SizedBox(height: 8),
           ListTile(
-            tileColor: Colors.white,
+            tileColor: fieldColor,
             leading: Icon(
               _selectedCategory == null
                   ? Icons.coffee_outlined
@@ -361,7 +362,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               final accounts = snapshot.data ?? const <AccountSummary>[];
               final account = accounts.where((item) => item.id == _accountId).firstOrNull;
               return ListTile(
-                tileColor: Colors.white,
+                tileColor: fieldColor,
                 leading: Icon(
                   account == null
                       ? Icons.account_balance_wallet_outlined
