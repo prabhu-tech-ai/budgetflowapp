@@ -8,11 +8,13 @@ class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({
     super.key,
     required this.database,
+    required this.onAccountChanged,
     this.currencyCode = 'INR',
     this.selectedAccountId,
   });
 
   final BudgetDatabase database;
+  final ValueChanged<int?> onAccountChanged;
   final String currencyCode;
   final int? selectedAccountId;
 
@@ -22,6 +24,8 @@ class TransactionsScreen extends StatefulWidget {
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  int? _selectedCategoryId;
+  bool _newestFirst = true;
 
   Future<void> _openAddTransaction() async {
     await Navigator.of(context).push<void>(
@@ -43,6 +47,123 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     });
   }
 
+  Future<void> _pickCategory() async {
+    final categories = await widget.database.watchCategories().first;
+    if (!mounted) return;
+    final selected = await showModalBottomSheet<int?>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text(
+                'Filter by Category',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.list_alt_outlined),
+              title: const Text('All Categories'),
+              trailing: _selectedCategoryId == null
+                  ? const Icon(Icons.check)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext),
+            ),
+            for (final category in categories)
+              ListTile(
+                leading: Icon(
+                  IconData(category.iconCodePoint, fontFamily: 'MaterialIcons'),
+                ),
+                title: Text(category.name),
+                trailing: category.id == _selectedCategoryId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(sheetContext, category.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _selectedCategoryId = selected);
+  }
+
+  Future<void> _pickSortOrder() async {
+    final selected = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text(
+                'Sort Transactions',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.arrow_downward),
+              title: const Text('Newest Date'),
+              trailing: _newestFirst ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(sheetContext, true),
+            ),
+            ListTile(
+              leading: const Icon(Icons.arrow_upward),
+              title: const Text('Oldest Date'),
+              trailing: !_newestFirst ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(sheetContext, false),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() => _newestFirst = selected);
+  }
+
+  Future<void> _pickAccount() async {
+    final accounts = await widget.database.watchAccountsWithIcons().first;
+    if (!mounted) return;
+    final selected = await showModalBottomSheet<Object?>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text(
+                'Filter by Account',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('All Accounts'),
+              trailing: widget.selectedAccountId == null
+                  ? const Icon(Icons.check)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, _allAccounts),
+            ),
+            for (final account in accounts)
+              ListTile(
+                leading: Icon(
+                  IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
+                ),
+                title: Text(account.name),
+                trailing: account.id == widget.selectedAccountId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(sheetContext, account.id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    widget.onAccountChanged(selected == _allAccounts ? null : selected as int);
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<TransactionWithDetails>>(
@@ -55,10 +176,33 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               final matchesAccount =
                   widget.selectedAccountId == null ||
                   item.transaction.accountId == widget.selectedAccountId;
+              final matchesCategory =
+                  _selectedCategoryId == null ||
+                  item.transaction.categoryId == _selectedCategoryId;
               return matchesAccount &&
+                  matchesCategory &&
                   date.year == _selectedMonth.year &&
                   date.month == _selectedMonth.month;
-            }).toList();
+            }).toList()
+          ..sort(
+            (a, b) => _newestFirst
+                ? b.transaction.transactionDate.compareTo(
+                    a.transaction.transactionDate,
+                  )
+                : a.transaction.transactionDate.compareTo(
+                    b.transaction.transactionDate,
+                  ),
+          );
+
+        final categoryLabel = _selectedCategoryId == null
+            ? 'All Categories'
+            : allTransactions
+                    .map((item) => item.category)
+                    .whereType<Category>()
+                    .where((category) => category.id == _selectedCategoryId)
+                    .map((category) => category.name)
+                    .firstOrNull ??
+                'Category';
 
         final income = transactions
             .where((item) => item.transaction.amountCents > 0)
@@ -76,6 +220,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               onPrevious: () => _changeMonth(-1),
               onNext: () => _changeMonth(1),
               onAdd: _openAddTransaction,
+              onAccount: _pickAccount,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -93,17 +238,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: _pickCategory,
                           icon: const Icon(Icons.filter_alt_outlined),
-                          label: const Text('All Categories'),
+                          label: Text(categoryLabel),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: _pickSortOrder,
                           icon: const Icon(Icons.sort),
-                          label: const Text('Newest Date'),
+                          label: Text(
+                            _newestFirst ? 'Newest Date' : 'Oldest Date',
+                          ),
                         ),
                       ),
                     ],
@@ -206,12 +353,14 @@ class _MonthHeader extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.onAdd,
+    required this.onAccount,
   });
 
   final DateTime selectedMonth;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onAdd;
+  final VoidCallback onAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +370,7 @@ class _MonthHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            onPressed: () {},
+            onPressed: onAccount,
             icon: const Icon(Icons.person_outline, color: Colors.white),
           ),
           IconButton(
@@ -264,3 +413,5 @@ class _MonthHeader extends StatelessWidget {
     'Dec',
   ];
 }
+
+const _allAccounts = Object();

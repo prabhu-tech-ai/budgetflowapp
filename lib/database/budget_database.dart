@@ -31,7 +31,9 @@ class BudgetDatabase extends _$BudgetDatabase {
   );
 
   Future<void> _seedDefaults() async {
-    final existingAccount = await select(accounts).getSingleOrNull();
+    final existingAccount = await (select(accounts)..limit(1))
+        .get()
+        .then((rows) => rows.firstOrNull);
     if (existingAccount == null) {
       await customInsert(
         "INSERT INTO accounts (name) VALUES ('Default Account')",
@@ -43,7 +45,9 @@ class BudgetDatabase extends _$BudgetDatabase {
       final exists =
           await (select(categories)..where(
             (item) => item.name.equals(category.name),
-          )).getSingleOrNull();
+          )..limit(1))
+        .get()
+        .then((rows) => rows.firstOrNull);
       if (exists == null) {
         await customInsert(
           'INSERT INTO categories (name, icon_code_point) VALUES (?, ?)',
@@ -98,13 +102,23 @@ class BudgetDatabase extends _$BudgetDatabase {
     );
   }
 
-  Future<int> defaultAccountId() async =>
-      (await select(accounts).getSingle()).id;
+  Future<int> defaultAccountId() async {
+    final account = await (select(accounts)
+          ..orderBy([(item) => OrderingTerm.asc(item.id)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (account == null) {
+      throw StateError('No account exists. Create an account before saving.');
+    }
+    return account.id;
+  }
 
   Future<int?> categoryIdForName(String name) async {
-    final row =
-        await (select(categories)
-          ..where((item) => item.name.equals(name))).getSingleOrNull();
+    final row = await (select(categories)
+          ..where((item) => item.name.equals(name))
+          ..limit(1))
+        .get()
+        .then((rows) => rows.firstOrNull);
     return row?.id;
   }
 
@@ -213,7 +227,10 @@ class BudgetDatabase extends _$BudgetDatabase {
     final existing =
         await (select(
           categories,
-        )..where((item) => item.name.equals(normalizedName))).getSingleOrNull();
+        )..where((item) => item.name.equals(normalizedName))
+        ..limit(1))
+        .get()
+        .then((rows) => rows.firstOrNull);
     if (existing != null) return existing.id;
     return into(categories).insert(
       CategoriesCompanion.insert(

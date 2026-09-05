@@ -119,6 +119,7 @@ class _BudgetShellState extends State<BudgetShell> {
         database: widget.database,
         currencyCode: widget.currencyCode,
         selectedAccountId: widget.selectedAccountId,
+        onAccountChanged: widget.onAccountChanged,
       ),
     ),
     _BudgetTabData(_categoriesScreen),
