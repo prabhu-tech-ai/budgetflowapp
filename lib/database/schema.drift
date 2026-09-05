@@ -1,23 +1,41 @@
+-- TABLE: accounts - Stores the financial accounts used by the budget.
 CREATE TABLE accounts (
+  -- COLUMN: accounts.id - Unique account identifier.
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  -- COLUMN: accounts.name - User-visible account name, such as Cash or Bank.
   name TEXT NOT NULL,
+  -- COLUMN: accounts.currency - ISO-style currency code used by the account.
   currency TEXT NOT NULL DEFAULT 'INR',
+  -- COLUMN: accounts.opening_balance_cents - Starting balance in the smallest currency unit.
   opening_balance_cents INTEGER NOT NULL DEFAULT 0,
+  -- COLUMN: accounts.icon_code_point - Material Icons code point for the account icon.
   icon_code_point INTEGER NOT NULL DEFAULT 0
 );
 
+-- TABLE: categories - Stores transaction categories used for grouping and reporting.
 CREATE TABLE categories (
+  -- COLUMN: categories.id - Unique category identifier.
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  -- COLUMN: categories.name - User-visible category name.
   name TEXT NOT NULL UNIQUE,
+  -- COLUMN: categories.icon_code_point - Material Icons code point for the category icon.
   icon_code_point INTEGER NOT NULL,
+  -- COLUMN: categories.is_default - Whether the category is a built-in default.
   is_default BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- TABLE: transactions - Stores income and expense entries assigned to an account.
 CREATE TABLE transactions (
+  -- COLUMN: transactions.id - Unique transaction identifier.
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  -- COLUMN: transactions.account_id - Account that owns this transaction.
   account_id INTEGER NOT NULL REFERENCES accounts(id),
+  -- COLUMN: transactions.category_id - Optional category for grouping this transaction.
   category_id INTEGER REFERENCES categories(id),
+  -- COLUMN: transactions.amount_cents - Signed amount in the smallest currency unit; income is positive.
   amount_cents INTEGER NOT NULL,
+  -- COLUMN: transactions.note - Optional note or description for the transaction.
   note TEXT,
+  -- COLUMN: transactions.transaction_date - Date and time when the transaction occurred.
   transaction_date DATETIME NOT NULL
 );

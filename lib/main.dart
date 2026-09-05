@@ -30,10 +30,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _loadDefaultAccount();
+    _initializeDatabase();
   }
 
-  Future<void> _loadDefaultAccount() async {
+  Future<void> _initializeDatabase() async {
     final accountId = await widget.database.defaultAccountId();
     if (!mounted) return;
     setState(() => _selectedAccountId = accountId);
@@ -101,13 +101,16 @@ class BudgetShell extends StatefulWidget {
 
 class _BudgetShellState extends State<BudgetShell> {
   int _selectedIndex = 0;
+  late final _categoriesScreen = CategoriesListScreen(
+    database: widget.database,
+  );
 
   List<_BudgetTabData> get _tabs => <_BudgetTabData>[
     _BudgetTabData(
       HomeScreen(
         database: widget.database,
         currencyCode: widget.currencyCode,
-        selectedAccountId: widget.selectedAccountId,
+          selectedAccountId: widget.selectedAccountId,
           onAccountChanged: widget.onAccountChanged,
       ),
     ),
@@ -118,7 +121,7 @@ class _BudgetShellState extends State<BudgetShell> {
         selectedAccountId: widget.selectedAccountId,
       ),
     ),
-    _BudgetTabData(CategoriesListScreen(database: widget.database)),
+    _BudgetTabData(_categoriesScreen),
     _BudgetTabData(
       SettingsScreen(
         database: widget.database,

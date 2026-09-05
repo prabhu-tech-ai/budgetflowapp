@@ -28,13 +28,29 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  late Future<List<AccountSummary>> _accounts;
+  int? _accountId;
   DateTime _selectedDate = DateTime.now();
   DateTime? _repeatEndDate;
   bool _isIncome = false;
   bool _isRepeating = false;
+  bool _isSaving = false;
   int _repeatEvery = 1;
   RepeatPeriod _repeatPeriod = RepeatPeriod.month;
   Category? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _accountId = widget.selectedAccountId;
+    _accounts = _loadAccounts();
+  }
+
+  Future<List<AccountSummary>> _loadAccounts() async {
+    final accounts = await widget.database.loadAccounts();
+    _accountId ??= await widget.database.defaultAccountId();
+    return accounts;
+  }
 
   Future<void> _setDefaultCategoryForIncomeType(bool isIncome) async {
     final categories = await widget.database.watchCategories().first;
@@ -98,6 +114,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
     if (!mounted) return;
     if (category != null) setState(() => _selectedCategory = category);
+  }
+
+  Future<void> _pickAccount(List<AccountSummary> accounts) async {
+    final selected = await showModalBottomSheet<AccountSummary>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Choose Account')),
+            for (final account in accounts)
+              ListTile(
+                leading: Icon(
+                  IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
+                ),
+                title: Text(account.name),
+                trailing: account.id == _accountId
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(sheetContext, account),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() => _accountId = selected.id);
   }
 
   Future<void> _pickRepeatSettings() async {
@@ -204,41 +247,56 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _save() async {
     final amount = double.tryParse(_amountController.text.trim());
     if (!_canSave || amount == null) return;
-    final title = _selectedCategory?.name ?? 'General';
-    final repeatEndDate =
-        _isRepeating
-            ? (_repeatEndDate ?? _defaultRepeatEndDate(_selectedDate, _repeatPeriod, _repeatEvery))
-            : null;
-    final accountId = widget.selectedAccountId ?? await widget.database.defaultAccountId();
-    await widget.database.addTransaction(
-      accountId: accountId,
-      categoryId: _selectedCategory?.id,
-      amountCents: (_isIncome ? amount : -amount).round() * 100,
-      note:
-          _notesController.text.trim().isEmpty
-              ? title
-              : _notesController.text.trim(),
-      date: _selectedDate,
-      repeatUntil: repeatEndDate,
-      repeatEvery: _repeatEvery,
-      repeatUnit: _repeatPeriod.name,
-    );
-    if (mounted) Navigator.pop(context);
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final title = _selectedCategory?.name ?? 'General';
+      final repeatEndDate =
+          _isRepeating
+              ? (_repeatEndDate ??
+                  _defaultRepeatEndDate(
+                    _selectedDate,
+                    _repeatPeriod,
+                    _repeatEvery,
+                  ))
+              : null;
+      final accountId = _accountId ?? await widget.database.defaultAccountId();
+      await widget.database.addTransaction(
+        accountId: accountId,
+        categoryId: _selectedCategory?.id,
+        amountCents: ((_isIncome ? amount : -amount) * 100).round(),
+        note:
+            _notesController.text.trim().isEmpty
+                ? title
+                : _notesController.text.trim(),
+        date: _selectedDate,
+        repeatUntil: repeatEndDate,
+        repeatEvery: _repeatEvery,
+        repeatUnit: _repeatPeriod.name,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to save transaction: $error')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final categoryLabel = _selectedCategory?.name ?? 'Choose Category';
     final amount = double.tryParse(_amountController.text.trim());
-    final canSave = amount != null && amount > 0 && _selectedCategory != null;
+    final canSave = amount != null && amount > 0;
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(onPressed: () => Navigator.pop(context)),
         title: const Text('Transaction'),
         actions: [
           TextButton(
-            onPressed: canSave ? _save : null,
-            child: const Text('Save'),
+            onPressed: canSave && !_isSaving ? _save : null,
+            child: Text(_isSaving ? 'Saving...' : 'Save'),
           ),
         ],
       ),
@@ -295,6 +353,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             title: Text(categoryLabel),
             trailing: const Icon(Icons.chevron_right),
             onTap: _pickCategory,
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<List<AccountSummary>>(
+            future: _accounts,
+            builder: (context, snapshot) {
+              final accounts = snapshot.data ?? const <AccountSummary>[];
+              final account = accounts.where((item) => item.id == _accountId).firstOrNull;
+              return ListTile(
+                tileColor: Colors.white,
+                leading: Icon(
+                  account == null
+                      ? Icons.account_balance_wallet_outlined
+                      : IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
+                ),
+                title: Text(account?.name ?? 'Loading account...'),
+                subtitle: const Text('Transaction account'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: accounts.isEmpty ? null : () => _pickAccount(accounts),
+              );
+            },
           ),
           const SizedBox(height: 8),
           TextField(
@@ -356,7 +434,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   bool get _canSave {
     final amount = double.tryParse(_amountController.text.trim());
-    return amount != null && amount > 0 && _selectedCategory != null;
+    return amount != null && amount > 0;
   }
 
   DateTime _defaultRepeatEndDate(

@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:budgetflow/database/budget_database.dart';
 
 import 'package:budgetflow/main.dart';
+import 'package:budgetflow/transaction/add_transaction_screen.dart';
 
 void main() {
   testWidgets('bottom navigation switches between budget tabs', (
@@ -71,6 +72,56 @@ void main() {
       DateTime(2026, 2, 15),
       DateTime(2026, 3, 15),
     ]);
+  });
+
+  test('creates repeated income transactions for the selected account', () async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    final accountId = await database.defaultAccountId();
+    final categoryId = await database.categoryIdForName('Salary');
+
+    await database.addTransaction(
+      accountId: accountId,
+      categoryId: categoryId,
+      amountCents: 125050,
+      note: 'Monthly salary',
+      date: DateTime(2026, 1, 31),
+      repeatUntil: DateTime(2026, 3, 31),
+      repeatEvery: 1,
+      repeatUnit: 'month',
+    );
+
+    final rows = await database.select(database.transactions).get();
+    expect(rows.length, 3);
+    expect(rows.every((row) => row.accountId == accountId), isTrue);
+    expect(rows.every((row) => row.amountCents == 125050), isTrue);
+  });
+
+  testWidgets('saves repeated income from the transaction form', (
+    WidgetTester tester,
+  ) async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() async => database.close());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddTransactionScreen(database: database),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Income'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '1250.50');
+    await tester.tap(find.text('Repeat'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final rows = await database.select(database.transactions).get();
+    expect(rows.length, 2);
+    expect(rows.every((row) => row.amountCents == 125050), isTrue);
   });
 
   testWidgets('changes month and filters transactions by selected month', (

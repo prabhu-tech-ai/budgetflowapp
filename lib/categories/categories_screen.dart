@@ -13,24 +13,43 @@ class CategoriesListScreen extends StatefulWidget {
 }
 
 class _CategoriesListScreenState extends State<CategoriesListScreen> {
+  late Future<List<Category>> _categories;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = _loadCategories();
+  }
+
+  Future<List<Category>> _loadCategories() =>
+      widget.database.select(widget.database.categories).get();
+
   Future<void> _openAddCategory() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => AddCategoryScreen(database: widget.database),
       ),
     );
+    if (!mounted) return;
+    setState(() => _categories = _loadCategories());
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Category>>(
-      stream: widget.database.watchCategories(),
-      builder:
-          (context, snapshot) => ListView(
+    return FutureBuilder<List<Category>>(
+      future: _categories,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Unable to load categories: ${snapshot.error}'),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              if (snapshot.hasError)
-                Text('Unable to load categories: ${snapshot.error}'),
               FilledButton.tonalIcon(
                 onPressed: _openAddCategory,
                 icon: const Icon(Icons.add),
@@ -40,7 +59,7 @@ class _CategoriesListScreenState extends State<CategoriesListScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              for (final category in snapshot.data ?? <Category>[])
+              for (final category in snapshot.data!)
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   leading: Icon(
@@ -55,7 +74,8 @@ class _CategoriesListScreenState extends State<CategoriesListScreen> {
                   ),
                 ),
             ],
-          ),
+          );
+      },
     );
   }
 }
