@@ -345,18 +345,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       '${date.day.toString().padLeft(2, '0')}-${_months[date.month - 1]}-${date.year}';
 
   static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
   ];
 }
 
