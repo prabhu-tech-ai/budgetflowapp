@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/utils.dart';
 import '../database/budget_database.dart';
 
 enum _EditRepeatPeriod { day, week, month }
 enum _RepeatEditChoice { cancel, justThis, allFuture }
+enum _RepeatDeleteChoice { cancel, justThis, future, all }
 
 class EditTransactionScreen extends StatefulWidget {
   const EditTransactionScreen({
@@ -38,6 +40,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   _EditRepeatPeriod _repeatPeriod = _EditRepeatPeriod.month;
   late final bool _wasRepeating = widget.transaction.repeatSeriesId != null;
   bool _isSaving = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -252,6 +255,93 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     }
   }
 
+  Future<void> _delete() async {
+    if (_isSaving || _isDeleting) return;
+    final deleteChoice = _wasRepeating
+        ? await _showRepeatDeleteDialog()
+        : ((await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Delete transaction?'),
+                    content: const Text(
+                      'This transaction will be permanently deleted.',
+                    ),
+                    actions: [
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('Delete'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
+                )) ??
+                false)
+            ? _RepeatDeleteChoice.justThis
+            : _RepeatDeleteChoice.cancel;
+    if (!mounted || deleteChoice == _RepeatDeleteChoice.cancel) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      switch (deleteChoice) {
+        case _RepeatDeleteChoice.justThis:
+          await widget.database.deleteTransaction(widget.transaction.id);
+        case _RepeatDeleteChoice.future:
+          await widget.database.deleteFutureTransactions(
+            repeatSeriesId: widget.transaction.repeatSeriesId!,
+            fromDate: widget.transaction.transactionDate,
+          );
+        case _RepeatDeleteChoice.all:
+          await widget.database.deleteAllTransactions(
+            widget.transaction.repeatSeriesId!,
+          );
+        case _RepeatDeleteChoice.cancel:
+          return;
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isDeleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to delete transaction: $error')),
+      );
+    }
+  }
+
+  Future<_RepeatDeleteChoice> _showRepeatDeleteDialog() async {
+    return await showDialog<_RepeatDeleteChoice>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Delete Repeating Transaction'),
+            content: const Text(
+              'This is a repeating transaction. Choose how you want to delete it.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, _RepeatDeleteChoice.justThis),
+                child: const Text('Delete This Month'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, _RepeatDeleteChoice.future),
+                child: const Text('Delete Future'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, _RepeatDeleteChoice.all),
+                child: const Text('Delete All'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, _RepeatDeleteChoice.cancel),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ) ??
+        _RepeatDeleteChoice.cancel;
+  }
+
   Future<_RepeatEditChoice> _showRepeatEditDialog() async {
     return await showDialog<_RepeatEditChoice>(
           context: context,
@@ -288,7 +378,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
         title: const Text('Edit Transaction'),
         actions: [
           TextButton(
-            onPressed: amount != null && amount > 0 && !_isSaving ? _save : null,
+            onPressed: amount != null && amount > 0 && !_isSaving && !_isDeleting
+                ? _save
+                : null,
             child: Text(_isSaving ? 'Saving...' : 'Save'),
           ),
         ],
@@ -384,13 +476,25 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: !_isSaving && !_isDeleting ? _delete : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Delete Transaction'),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}-${_months[date.month - 1]}-${date.year}';
+  String _formatDate(DateTime date) => AppUtils.formatDate(date);
 
   DateTime _advanceDate(DateTime date, int every, _EditRepeatPeriod period) {
     switch (period) {
@@ -419,8 +523,4 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     };
   }
 
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
 }

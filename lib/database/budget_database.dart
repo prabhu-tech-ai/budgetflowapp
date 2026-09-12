@@ -333,6 +333,30 @@ class BudgetDatabase extends _$BudgetDatabase {
     );
   }
 
+  Future<void> deleteTransaction(int id) async {
+    await (delete(transactions)..where((item) => item.id.equals(id))).go();
+  }
+
+  Future<void> deleteFutureTransactions({
+    required int repeatSeriesId,
+    required DateTime fromDate,
+  }) async {
+    await (delete(transactions)
+          ..where(
+            (item) =>
+                item.repeatSeriesId.equals(repeatSeriesId) &
+              (item.transactionDate.isBiggerThanValue(fromDate) |
+                item.transactionDate.equals(fromDate)),
+          ))
+        .go();
+  }
+
+  Future<void> deleteAllTransactions(int repeatSeriesId) async {
+    await (delete(transactions)
+          ..where((item) => item.repeatSeriesId.equals(repeatSeriesId)))
+        .go();
+  }
+
   Future<void> updateFutureTransactions({
     required int repeatSeriesId,
     required DateTime fromDate,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/utils.dart';
 import '../database/budget_database.dart';
 
 enum RepeatPeriod { day, week, month }
@@ -83,8 +84,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2020),
       lastDate: DateTime(2100),
+      firstDate: DateTime(2020),
     );
     if (date != null) setState(() => _selectedDate = date);
   }
@@ -94,23 +95,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!mounted) return;
     final category = await showModalBottomSheet<Category>(
       context: context,
-      builder:
-          (context) => SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                const ListTile(title: Text('Choose Category')),
-                for (final item in categories)
-                  ListTile(
-                    leading: Icon(
-                      IconData(item.iconCodePoint, fontFamily: 'MaterialIcons'),
-                    ),
-                    title: Text(item.name),
-                    onTap: () => Navigator.pop(context, item),
-                  ),
-              ],
-            ),
-          ),
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Choose Category')),
+            for (final item in categories)
+              ListTile(
+                leading: Icon(
+                  IconData(item.iconCodePoint, fontFamily: 'MaterialIcons'),
+                ),
+                title: Text(item.name),
+                onTap: () => Navigator.pop(context, item),
+              ),
+          ],
+        ),
+      ),
     );
     if (!mounted) return;
     if (category != null) setState(() => _selectedCategory = category);
@@ -457,22 +457,5 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}-'
-      '${_months[date.month - 1]}-${date.year}';
-
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
+  String _formatDate(DateTime date) => AppUtils.formatDate(date);
 }

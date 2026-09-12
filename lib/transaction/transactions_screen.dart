@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/currency.dart';
+import '../core/utils.dart';
 import '../database/budget_database.dart';
 import 'add_transaction_screen.dart';
 import 'edit_transaction_screen.dart';
@@ -341,23 +342,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}-${_months[date.month - 1]}-${date.year}';
-
-  static const _months = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-  ];
+  String _formatDate(DateTime date) => AppUtils.formatDate(date);
 }
 
 class _MonthHeader extends StatelessWidget {
@@ -393,7 +378,7 @@ class _MonthHeader extends StatelessWidget {
           Expanded(
             child: Center(
               child: Text(
-                _months[selectedMonth.month - 1],
+                AppUtils.monthName(selectedMonth),
                 style: const TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
@@ -411,20 +396,6 @@ class _MonthHeader extends StatelessWidget {
     );
   }
 
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
 }
 
 const _allAccounts = Object();

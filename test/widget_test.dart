@@ -74,6 +74,32 @@ void main() {
     ]);
   });
 
+  test('deletes the selected and future repeated transactions only', () async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    final accountId = await database.defaultAccountId();
+    await database.addTransaction(
+      accountId: accountId,
+      amountCents: -2500,
+      date: DateTime(2026, 1, 15),
+      repeatUntil: DateTime(2026, 4, 15),
+      repeatEvery: 1,
+      repeatUnit: 'month',
+    );
+
+    final rows = await database.select(database.transactions).get();
+    await database.deleteFutureTransactions(
+      repeatSeriesId: rows[1].repeatSeriesId!,
+      fromDate: rows[1].transactionDate,
+    );
+
+    final remaining = await database.select(database.transactions).get();
+    expect(remaining.map((row) => row.transactionDate).toList(), [
+      DateTime(2026, 1, 15),
+    ]);
+  });
+
   test('creates repeated income transactions for the selected account', () async {
     final database = BudgetDatabase(NativeDatabase.memory());
     addTearDown(() => database.close());

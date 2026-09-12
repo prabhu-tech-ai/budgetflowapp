@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/currency.dart';
+import '../core/utils.dart';
 import '../database/budget_database.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -242,7 +243,7 @@ class _OverviewHeader extends StatelessWidget {
               SizedBox(
                 width: 130,
                 child: Text(
-                  _months[month.month - 1],
+                  AppUtils.monthName(month),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white, fontSize: 26),
                 ),
@@ -447,17 +448,3 @@ class _BreakdownRow extends StatelessWidget {
   }
 }
 
-const _months = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
