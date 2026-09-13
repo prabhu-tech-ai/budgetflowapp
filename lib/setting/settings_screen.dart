@@ -36,7 +36,10 @@ class SettingsScreen extends StatelessWidget {
             selectedAccountId == null
                 ? 'No account selected'
                 : 'Selected account: $selectedAccountId',
-        onTap: () => _showAccountManager(context),
+        onTap: () {
+          debugPrint('Add/Manage Account tapped');
+          _showAccountManager(context);
+        },
       ),
       _SettingsOption(
         icon: Icons.dark_mode_outlined,
@@ -160,35 +163,79 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _showAccountManager(BuildContext context) async {
-    final accounts = await database.watchAccountsWithIcons().first;
+    final accounts = await database.loadAccounts();
     if (!context.mounted) return;
 
-    final selected = await showModalBottomSheet<int>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Accounts',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                if (accounts.isEmpty)
-                  const Text('No accounts yet'),
-                for (final account in accounts)
-                  ListTile(
-                    leading: const Icon(Icons.person_outline),
-                    title: Text(account.name),
-                    trailing:
-                        Row(
+    final selected = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => _AccountManagerScreen(
+          database: database,
+          initialAccounts: accounts,
+          onAccountChanged: onAccountChanged,
+        ),
+      ),
+    );
+
+    if (!context.mounted) return;
+    if (selected != null) {
+      onAccountChanged(selected);
+    }
+  }
+
+}
+
+class _AccountManagerScreen extends StatefulWidget {
+  const _AccountManagerScreen({
+    required this.database,
+    required this.initialAccounts,
+    required this.onAccountChanged,
+  });
+
+  final BudgetDatabase database;
+  final List<AccountSummary> initialAccounts;
+  final ValueChanged<int?> onAccountChanged;
+
+  @override
+  State<_AccountManagerScreen> createState() => _AccountManagerScreenState();
+}
+
+class _AccountManagerScreenState extends State<_AccountManagerScreen> {
+  late List<AccountSummary> _accounts;
+
+  @override
+  void initState() {
+    super.initState();
+    _accounts = widget.initialAccounts;
+  }
+
+  Future<void> _refreshAccounts() async {
+    final accounts = await widget.database.loadAccounts();
+    if (!mounted) return;
+    setState(() => _accounts = accounts);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Accounts'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_accounts.isEmpty)
+              const Text('No accounts yet')
+            else
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final account in _accounts)
+                      ListTile(
+                        leading: const Icon(Icons.person_outline),
+                        title: Text(account.name),
+                        trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
@@ -201,65 +248,61 @@ class SettingsScreen extends StatelessWidget {
                                     : Icons.star_border,
                               ),
                               onPressed: () async {
-                                await database.setDefaultAccount(account.id);
-                                if (!sheetContext.mounted) return;
-                                Navigator.pop(sheetContext, account.id);
+                                await widget.database.setDefaultAccount(account.id);
+                                await _refreshAccounts();
+                                if (!mounted) return;
+                                Navigator.of(context).pop(account.id);
                               },
                             ),
                             IconButton(
                               tooltip: 'Edit account',
                               icon: const Icon(Icons.edit_outlined),
                               onPressed: () async {
-                                final name = await _showEditAccountDialog(
+                                final newName = await _showEditAccountDialog(
                                   context,
                                   account.name,
                                 );
-                                if (name == null) return;
-                                await database.updateAccountName(
+                                if (newName == null) return;
+                                await widget.database.updateAccountName(
                                   id: account.id,
-                                  name: name,
+                                  name: newName,
                                 );
-                                if (sheetContext.mounted) {
-                                  Navigator.pop(sheetContext, account.id);
-                                }
+                                await _refreshAccounts();
                               },
                             ),
                           ],
                         ),
-                    onTap: () => Navigator.pop(sheetContext, account.id),
-                  ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      final result = await _showAddAccountDialog(context);
-                      if (result == null) return;
-
-                      final id = await database.addAccount(
-                        name: result['name'] as String,
-                        currency: result['currency'] as String,
-                        iconCodePoint: result['iconCodePoint'] as int,
-                      );
-
-                      if (!sheetContext.mounted) return;
-                      Navigator.pop(sheetContext, id);
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Account'),
-                  ),
+                        onTap: () => Navigator.of(context).pop(account.id),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+              ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final result = await _showAddAccountDialog(context);
+                  if (result == null) return;
 
-    if (!context.mounted) return;
-    if (selected != null) {
-      onAccountChanged(selected);
-    }
+                  final id = await widget.database.addAccount(
+                    name: result['name'] as String,
+                    currency: result['currency'] as String,
+                    iconCodePoint: result['iconCodePoint'] as int,
+                  );
+
+                  await _refreshAccounts();
+                  if (!mounted) return;
+                  Navigator.of(context).pop(id);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add Account'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<Map<String, dynamic>?> _showAddAccountDialog(BuildContext context) async {
@@ -268,49 +311,45 @@ class SettingsScreen extends StatelessWidget {
     return showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (innerContext, setState) {
-            return AlertDialog(
-              title: const Text('Add Account'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      labelText: 'Account name',
-                      hintText: 'Cash, Bank, Savings',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.person_outline),
-                    title: Text('Account icon'),
-                    subtitle: Text('Multi-user icon'),
-                  ),
-                ],
+        return AlertDialog(
+          title: const Text('Add Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Account name',
+                  hintText: 'Cash, Bank, Savings',
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final name = controller.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(dialogContext, {
-                      'name': name,
-                      'currency': 'INR',
-                      'iconCodePoint': AppUtils.singleAccountIconCodePoint,
-                    });
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
+              const SizedBox(height: 16),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.person_outline),
+                title: Text('Account icon'),
+                subtitle: Text('Multi-user icon'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = controller.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(dialogContext, {
+                  'name': name,
+                  'currency': 'INR',
+                  'iconCodePoint': AppUtils.singleAccountIconCodePoint,
+                });
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );

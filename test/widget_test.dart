@@ -248,6 +248,33 @@ void main() {
     );
   });
 
+  testWidgets('opens the account manager from settings', (
+    WidgetTester tester,
+  ) async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsScreen(
+          database: database,
+          themeMode: ThemeMode.system,
+          onToggleTheme: (_) {},
+          currencyCode: 'INR',
+          onCurrencyChanged: (_) {},
+          selectedAccountId: null,
+          onAccountChanged: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add/Manage Account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Accounts'), findsOneWidget);
+  });
+
   test('seeds default income categories for income transactions', () async {
     final database = BudgetDatabase(NativeDatabase.memory());
     addTearDown(() => database.close());
