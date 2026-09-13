@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'categories/categories_screen.dart';
+import 'core/utils.dart';
 import 'database/budget_database.dart';
 import 'home/home_screen.dart';
 import 'setting/settings_screen.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  var _isDarkTheme = false;
+  ThemeMode _themeMode = ThemeMode.system;
   var _currencyCode = 'INR';
   int? _selectedAccountId;
 
@@ -40,7 +41,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _toggleTheme(bool value) {
-    setState(() => _isDarkTheme = value);
+    setState(() => _themeMode = value ? ThemeMode.dark : ThemeMode.light);
   }
 
   void _setCurrency(String code) {
@@ -55,16 +56,21 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BudgetFlow',
+      themeMode: _themeMode,
       theme: ThemeData(
-        brightness: _isDarkTheme ? Brightness.dark : Brightness.light,
+        brightness: Brightness.light,
+        colorScheme: AppUtils.headerColorScheme,
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.teal,
-          brightness: _isDarkTheme ? Brightness.dark : Brightness.light,
+          brightness: Brightness.dark,
         ),
       ),
       home: BudgetShell(
         database: widget.database,
-        isDarkTheme: _isDarkTheme,
+        themeMode: _themeMode,
         onToggleTheme: _toggleTheme,
         currencyCode: _currencyCode,
         onCurrencyChanged: _setCurrency,
@@ -79,7 +85,7 @@ class BudgetShell extends StatefulWidget {
   const BudgetShell({
     super.key,
     required this.database,
-    required this.isDarkTheme,
+    required this.themeMode,
     required this.onToggleTheme,
     required this.currencyCode,
     required this.onCurrencyChanged,
@@ -88,7 +94,7 @@ class BudgetShell extends StatefulWidget {
   });
 
   final BudgetDatabase database;
-  final bool isDarkTheme;
+  final ThemeMode themeMode;
   final ValueChanged<bool> onToggleTheme;
   final String currencyCode;
   final ValueChanged<String> onCurrencyChanged;
@@ -126,7 +132,7 @@ class _BudgetShellState extends State<BudgetShell> {
     _BudgetTabData(
       SettingsScreen(
         database: widget.database,
-        isDarkTheme: widget.isDarkTheme,
+        themeMode: widget.themeMode,
         onToggleTheme: widget.onToggleTheme,
         currencyCode: widget.currencyCode,
         onCurrencyChanged: widget.onCurrencyChanged,

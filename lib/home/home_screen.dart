@@ -224,8 +224,8 @@ class _OverviewHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.secondary,
+            AppUtils.headerColorScheme.primary,
+            AppUtils.headerColorScheme.secondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

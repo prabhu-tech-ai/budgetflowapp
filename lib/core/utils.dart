@@ -1,5 +1,12 @@
+import 'package:flutter/material.dart';
+
 class AppUtils {
   AppUtils._();
+
+  static final headerColorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.teal,
+    brightness: Brightness.light,
+  );
 
   static const List<String> _months = [
     'January',

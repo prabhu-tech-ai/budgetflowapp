@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../database/budget_database.dart';
+import 'category_icons.dart';
 
 class AddCategoryScreen extends StatefulWidget {
   const AddCategoryScreen({super.key, required this.database});
@@ -13,22 +14,7 @@ class AddCategoryScreen extends StatefulWidget {
 
 class _AddCategoryScreenState extends State<AddCategoryScreen> {
   final _nameController = TextEditingController();
-  IconData _selectedIcon = Icons.category_outlined;
-
-  static const _availableIcons = <IconData>[
-    Icons.shopping_bag_outlined,
-    Icons.card_giftcard_outlined,
-    Icons.flight_outlined,
-    Icons.restaurant_outlined,
-    Icons.sports_soccer_outlined,
-    Icons.movie_outlined,
-    Icons.local_fire_department_outlined,
-    Icons.child_care_outlined,
-    Icons.directions_walk_outlined,
-    Icons.shopping_cart_outlined,
-    Icons.home_outlined,
-    Icons.receipt_long_outlined,
-  ];
+  IconData? _selectedIcon;
 
   @override
   void dispose() {
@@ -38,17 +24,23 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
   Future<void> _saveCategory() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) {
+    if (name.isEmpty || _selectedIcon == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Enter a category name')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            name.isEmpty ? 'Enter a category name' : 'Select a category icon',
+          ),
+        ),
+      );
       return;
     }
 
     try {
       await widget.database.addCategory(
         name: name,
-        iconCodePoint: _selectedIcon.codePoint,
+        iconCodePoint: _selectedIcon!.codePoint,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
@@ -66,52 +58,87 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
         leading: BackButton(onPressed: () => Navigator.of(context).pop()),
         title: const Text('New Category'),
         actions: [
-          TextButton(onPressed: _saveCategory, child: const Text('Save')),
+          TextButton(
+            onPressed: _nameController.text.trim().isNotEmpty &&
+                    _selectedIcon != null
+                ? _saveCategory
+                : null,
+            child: const Text('Save'),
+          ),
         ],
       ),
-      body: ListView(
+      body: Padding(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
-        children: [
-          Text(
-            'Category Detail',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const Divider(height: 32),
-          TextField(
-            controller: _nameController,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _saveCategory(),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-              labelText: 'Name',
-              border: OutlineInputBorder(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Category Detail',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-          ),
-          const SizedBox(height: 16),
-          InputDecorator(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.grid_view_rounded),
-              labelText: 'Icon',
-              border: OutlineInputBorder(),
+            const Divider(height: 32),
+            TextField(
+              controller: _nameController,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _saveCategory(),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            const SizedBox(height: 16),
+            Text(
+              'Category Icons',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                for (final icon in _availableIcons)
-                  IconButton(
-                    tooltip: 'Select icon',
-                    onPressed: () => setState(() => _selectedIcon = icon),
-                    color:
-                        icon == _selectedIcon
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                    icon: Icon(icon),
-                  ),
+                CircleAvatar(
+                  child: Icon(_selectedIcon ?? Icons.grid_view_rounded),
+                ),
+                const SizedBox(width: 12),
+                const Text('Select an icon for this category'),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final group in categoryIconGroups) ...[
+                      Text(
+                        group.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final icon in group.icons)
+                            IconButton(
+                              tooltip: '${group.name} icon',
+                              onPressed: () =>
+                                  setState(() => _selectedIcon = icon),
+                              color: icon == _selectedIcon
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                              icon: Icon(icon),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

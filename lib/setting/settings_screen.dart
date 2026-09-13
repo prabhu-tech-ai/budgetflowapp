@@ -9,7 +9,7 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
     super.key,
     required this.database,
-    required this.isDarkTheme,
+    required this.themeMode,
     required this.onToggleTheme,
     required this.currencyCode,
     required this.onCurrencyChanged,
@@ -18,7 +18,7 @@ class SettingsScreen extends StatelessWidget {
   });
 
   final BudgetDatabase database;
-  final bool isDarkTheme;
+  final ThemeMode themeMode;
   final ValueChanged<bool> onToggleTheme;
   final String currencyCode;
   final ValueChanged<String> onCurrencyChanged;
@@ -39,13 +39,19 @@ class SettingsScreen extends StatelessWidget {
       ),
       _SettingsOption(
         icon: Icons.dark_mode_outlined,
-        title: 'Dark Theme',
-        subtitle: 'Switch between light and dark appearance',
+        title: 'Theme',
+        subtitle: themeMode == ThemeMode.system
+            ? 'System default'
+            : themeMode == ThemeMode.dark
+                ? 'Dark mode'
+                : 'Light mode',
         trailing: Switch(
-          value: isDarkTheme,
+          value: themeMode == ThemeMode.dark ||
+              (themeMode == ThemeMode.system &&
+                  MediaQuery.platformBrightnessOf(context) == Brightness.dark),
           onChanged: onToggleTheme,
         ),
-        onTap: () => onToggleTheme(!isDarkTheme),
+        onTap: () => onToggleTheme(themeMode != ThemeMode.dark),
       ),
       _SettingsOption(
         icon: Icons.currency_rupee_outlined,
