@@ -433,7 +433,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               final accounts = snapshot.data ?? const <AccountSummary>[];
               final account = accounts.where((item) => item.id == _accountId).firstOrNull;
               return ListTile(
-                leading: const Icon(Icons.account_balance_wallet_outlined),
+                leading: const Icon(Icons.person_outline),
                 title: Text(account?.name ?? widget.account.name),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: accounts.isEmpty ? null : () => _pickAccount(accounts),

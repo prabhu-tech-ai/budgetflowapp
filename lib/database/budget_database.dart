@@ -52,7 +52,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     if (existingAccount == null) {
       await customInsert(
         "INSERT INTO accounts (name, icon_code_point) VALUES ('Default Account', ?)",
-        variables: [Variable(AppUtils.accountIconCodePoint)],
+        variables: [Variable(AppUtils.singleAccountIconCodePoint)],
         updates: {accounts},
       );
     }
@@ -222,7 +222,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     required String name,
     String currency = 'INR',
     int openingBalanceCents = 0,
-    int iconCodePoint = AppUtils.accountIconCodePoint,
+    int iconCodePoint = AppUtils.singleAccountIconCodePoint,
   }) => customInsert(
     'INSERT INTO accounts (name, currency, opening_balance_cents, icon_code_point) VALUES (?, ?, ?, ?)',
     variables: [

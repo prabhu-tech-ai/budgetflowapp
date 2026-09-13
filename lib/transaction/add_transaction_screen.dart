@@ -126,7 +126,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const ListTile(title: Text('Choose Account')),
             for (final account in accounts)
               ListTile(
-                leading: const Icon(Icons.group_outlined),
+                leading: const Icon(Icons.person_outline),
                 title: Text(account.name),
                 trailing: account.id == _accountId
                     ? const Icon(Icons.check)
@@ -361,11 +361,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               final account = accounts.where((item) => item.id == _accountId).firstOrNull;
               return ListTile(
                 tileColor: fieldColor,
-                leading: Icon(
-                  account == null
-                      ? Icons.account_balance_wallet_outlined
-                      : IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
-                ),
+                leading: const Icon(Icons.person_outline),
                 title: Text(account?.name ?? 'Loading account...'),
                 subtitle: const Text('Transaction account'),
                 trailing: const Icon(Icons.chevron_right),

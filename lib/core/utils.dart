@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class AppUtils {
   AppUtils._();
 
-  static const accountIconCodePoint = Icons.group_outlined.codePoint;
+  static const singleAccountIconCodePoint = 0xe7ff;
+  static const accountIconCodePoint = 0xf0d9;
 
   static final headerColorScheme = ColorScheme.fromSeed(
     seedColor: Colors.teal,

@@ -140,7 +140,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
+              leading: const Icon(Icons.group_outlined),
               title: const Text('All Accounts'),
               trailing: widget.selectedAccountId == null
                   ? const Icon(Icons.check)
@@ -149,7 +149,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             for (final account in accounts)
               ListTile(
-                leading: const Icon(Icons.group_outlined),
+                leading: const Icon(Icons.person_outline),
                 title: Text(account.name),
                 trailing: account.id == widget.selectedAccountId
                     ? const Icon(Icons.check)
