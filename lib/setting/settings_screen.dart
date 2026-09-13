@@ -160,14 +160,14 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _showAccountManager(BuildContext context) async {
-    final rootContext = context;
     final accounts = await database.watchAccountsWithIcons().first;
-    if (!rootContext.mounted) return;
+    if (!context.mounted) return;
 
     final selected = await showModalBottomSheet<int>(
-      context: rootContext,
+      context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
@@ -211,7 +211,7 @@ class SettingsScreen extends StatelessWidget {
                               icon: const Icon(Icons.edit_outlined),
                               onPressed: () async {
                                 final name = await _showEditAccountDialog(
-                                  rootContext,
+                                  context,
                                   account.name,
                                 );
                                 if (name == null) return;
@@ -233,7 +233,7 @@ class SettingsScreen extends StatelessWidget {
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: () async {
-                      final result = await _showAddAccountDialog(rootContext);
+                      final result = await _showAddAccountDialog(context);
                       if (result == null) return;
 
                       final id = await database.addAccount(
@@ -256,7 +256,7 @@ class SettingsScreen extends StatelessWidget {
       },
     );
 
-    if (!rootContext.mounted) return;
+    if (!context.mounted) return;
     if (selected != null) {
       onAccountChanged(selected);
     }
