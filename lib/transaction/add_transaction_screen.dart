@@ -119,6 +119,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _pickAccount(List<AccountSummary> accounts) async {
     final selected = await showModalBottomSheet<AccountSummary>(
       context: context,
+      useRootNavigator: true,
       builder: (sheetContext) => SafeArea(
         child: ListView(
           shrinkWrap: true,

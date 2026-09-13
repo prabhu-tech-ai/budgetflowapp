@@ -166,6 +166,7 @@ class SettingsScreen extends StatelessWidget {
 
     final selected = await showModalBottomSheet<int>(
       context: rootContext,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (sheetContext) {
         return SafeArea(
@@ -187,9 +188,44 @@ class SettingsScreen extends StatelessWidget {
                     leading: const Icon(Icons.person_outline),
                     title: Text(account.name),
                     trailing:
-                        account.id == selectedAccountId
-                            ? const Icon(Icons.check)
-                            : null,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: account.isDefault
+                                  ? 'Default account'
+                                  : 'Set as default',
+                              icon: Icon(
+                                account.isDefault
+                                    ? Icons.star
+                                    : Icons.star_border,
+                              ),
+                              onPressed: () async {
+                                await database.setDefaultAccount(account.id);
+                                if (!sheetContext.mounted) return;
+                                Navigator.pop(sheetContext, account.id);
+                              },
+                            ),
+                            IconButton(
+                              tooltip: 'Edit account',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () async {
+                                final name = await _showEditAccountDialog(
+                                  rootContext,
+                                  account.name,
+                                );
+                                if (name == null) return;
+                                await database.updateAccountName(
+                                  id: account.id,
+                                  name: name,
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.pop(sheetContext, account.id);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                     onTap: () => Navigator.pop(sheetContext, account.id),
                   ),
                 const SizedBox(height: 8),
@@ -206,8 +242,8 @@ class SettingsScreen extends StatelessWidget {
                         iconCodePoint: result['iconCodePoint'] as int,
                       );
 
-                      if (!rootContext.mounted) return;
-                      Navigator.pop(rootContext, id);
+                      if (!sheetContext.mounted) return;
+                      Navigator.pop(sheetContext, id);
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Add Account'),
@@ -277,6 +313,38 @@ class SettingsScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  Future<String?> _showEditAccountDialog(
+    BuildContext context,
+    String currentName,
+  ) async {
+    final controller = TextEditingController(text: currentName);
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Account Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Account name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.length < 2) return;
+              Navigator.pop(dialogContext, name);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 }

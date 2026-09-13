@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:budgetflow/database/budget_database.dart';
 
 import 'package:budgetflow/main.dart';
+import 'package:budgetflow/setting/settings_screen.dart';
 import 'package:budgetflow/transaction/add_transaction_screen.dart';
 
 void main() {
@@ -189,6 +190,62 @@ void main() {
     expect(find.text('Sep'), findsOneWidget);
     expect(find.text('September expense'), findsOneWidget);
     expect(find.text('August expense'), findsNothing);
+  });
+
+  testWidgets('adds and renames an account from the settings manager', (
+    WidgetTester tester,
+  ) async {
+    final database = BudgetDatabase(NativeDatabase.memory());
+    addTearDown(() => database.close());
+
+    int? selectedAccountId;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsScreen(
+          database: database,
+          themeMode: ThemeMode.system,
+          onToggleTheme: (_) {},
+          currencyCode: 'INR',
+          onCurrencyChanged: (_) {},
+          selectedAccountId: null,
+          onAccountChanged: (id) => selectedAccountId = id,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add/Manage Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add Account'));
+    await tester.pumpAndSettle();
+
+    final addNameField = find.byType(TextField).last;
+    await tester.enterText(addNameField, 'Travel');
+    await tester.tap(find.text('Save').last);
+    await tester.pumpAndSettle();
+
+    expect(selectedAccountId, isNotNull);
+    expect(
+      (await database.loadAccounts()).any((account) => account.name == 'Travel'),
+      isTrue,
+    );
+
+    await tester.tap(find.text('Add/Manage Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Edit account').last);
+    await tester.pumpAndSettle();
+
+    final editField = find.byType(TextField).last;
+    await tester.enterText(editField, 'Travel Savings');
+    await tester.tap(find.text('Save').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      (await database.loadAccounts()).any(
+        (account) => account.name == 'Travel Savings',
+      ),
+      isTrue,
+    );
   });
 
   test('seeds default income categories for income transactions', () async {

@@ -11,7 +11,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     : super(executor ?? driftDatabase(name: 'budgetflow'));
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +42,23 @@ class BudgetDatabase extends _$BudgetDatabase {
           ),
         );
       }
+      if (from < 7) {
+        await m.alterTable(
+          TableMigration(
+            accounts,
+            newColumns: [accounts.isDefault],
+          ),
+        );
+        final firstAccount = await (select(accounts)
+              ..orderBy([(item) => OrderingTerm.asc(item.id)])
+              ..limit(1))
+            .getSingleOrNull();
+        if (firstAccount != null) {
+          await (update(accounts)
+                ..where((item) => item.id.equals(firstAccount.id)))
+              .write(const AccountsCompanion(isDefault: Value(true)));
+        }
+      }
     },
   );
 
@@ -51,7 +68,7 @@ class BudgetDatabase extends _$BudgetDatabase {
         .then((rows) => rows.firstOrNull);
     if (existingAccount == null) {
       await customInsert(
-        "INSERT INTO accounts (name, icon_code_point) VALUES ('Default Account', ?)",
+        "INSERT INTO accounts (name, icon_code_point, is_default) VALUES ('Default Account', ?, TRUE)",
         variables: [Variable(AppUtils.singleAccountIconCodePoint)],
         updates: {accounts},
       );
@@ -82,7 +99,7 @@ class BudgetDatabase extends _$BudgetDatabase {
 
   Future<List<AccountSummary>> loadAccounts() async {
     final rows = await customSelect(
-      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point FROM accounts ORDER BY id',
+      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point, is_default FROM accounts ORDER BY id',
       readsFrom: {accounts},
     ).get();
     return rows
@@ -93,6 +110,7 @@ class BudgetDatabase extends _$BudgetDatabase {
             currency: row.data['currency'] as String? ?? 'INR',
             openingBalanceCents: row.data['opening_balance_cents'] as int? ?? 0,
             iconCodePoint: row.data['icon_code_point'] as int? ?? 0,
+            isDefault: row.data['is_default'] as bool? ?? false,
           ),
         )
         .toList();
@@ -100,7 +118,7 @@ class BudgetDatabase extends _$BudgetDatabase {
 
   Stream<List<AccountSummary>> watchAccountsWithIcons() {
     return customSelect(
-      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point FROM accounts ORDER BY id',
+      'SELECT id, name, currency, opening_balance_cents, COALESCE(icon_code_point, 0) AS icon_code_point, is_default FROM accounts ORDER BY id',
       readsFrom: {accounts},
     ).watch().map(
       (rows) => rows
@@ -111,6 +129,7 @@ class BudgetDatabase extends _$BudgetDatabase {
               currency: row.data['currency'] as String? ?? 'INR',
               openingBalanceCents: row.data['opening_balance_cents'] as int? ?? 0,
               iconCodePoint: row.data['icon_code_point'] as int? ?? 0,
+              isDefault: row.data['is_default'] as bool? ?? false,
             ),
           )
           .toList(),
@@ -119,7 +138,10 @@ class BudgetDatabase extends _$BudgetDatabase {
 
   Future<int> defaultAccountId() async {
     final account = await (select(accounts)
-          ..orderBy([(item) => OrderingTerm.asc(item.id)])
+          ..orderBy([
+            (item) => OrderingTerm.desc(item.isDefault),
+            (item) => OrderingTerm.asc(item.id),
+          ])
           ..limit(1))
         .getSingleOrNull();
     if (account == null) {
@@ -223,16 +245,36 @@ class BudgetDatabase extends _$BudgetDatabase {
     String currency = 'INR',
     int openingBalanceCents = 0,
     int iconCodePoint = AppUtils.singleAccountIconCodePoint,
+    bool isDefault = false,
   }) => customInsert(
-    'INSERT INTO accounts (name, currency, opening_balance_cents, icon_code_point) VALUES (?, ?, ?, ?)',
+    'INSERT INTO accounts (name, currency, opening_balance_cents, icon_code_point, is_default) VALUES (?, ?, ?, ?, ?)',
     variables: [
       Variable(name),
       Variable(currency),
       Variable(openingBalanceCents),
       Variable(iconCodePoint),
+      Variable(isDefault),
     ],
     updates: {accounts},
   );
+
+  Future<void> updateAccountName({
+    required int id,
+    required String name,
+  }) async {
+    await (update(accounts)..where((item) => item.id.equals(id))).write(
+      AccountsCompanion(name: Value(name.trim())),
+    );
+  }
+
+  Future<void> setDefaultAccount(int id) async {
+    await transaction(() async {
+      await update(accounts).write(const AccountsCompanion(isDefault: Value(false)));
+      await (update(accounts)..where((item) => item.id.equals(id))).write(
+        const AccountsCompanion(isDefault: Value(true)),
+      );
+    });
+  }
 
   Future<int> addCategory({
     required String name,
@@ -426,6 +468,7 @@ class AccountSummary {
     required this.currency,
     required this.openingBalanceCents,
     required this.iconCodePoint,
+    required this.isDefault,
   });
 
   final int id;
@@ -433,6 +476,7 @@ class AccountSummary {
   final String currency;
   final int openingBalanceCents;
   final int iconCodePoint;
+  final bool isDefault;
 }
 
 class TransactionWithDetails {

@@ -62,6 +62,18 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
     $customConstraints: 'NOT NULL DEFAULT 0',
     defaultValue: const CustomExpression('0'),
   );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT FALSE',
+    defaultValue: const CustomExpression('FALSE'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -69,6 +81,7 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
     currency,
     openingBalanceCents,
     iconCodePoint,
+    isDefault,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -117,6 +130,12 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
         ),
       );
     }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
     return context;
   }
 
@@ -151,6 +170,11 @@ class Accounts extends Table with TableInfo<Accounts, Account> {
             DriftSqlType.int,
             data['${effectivePrefix}icon_code_point'],
           )!,
+      isDefault:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_default'],
+          )!,
     );
   }
 
@@ -178,12 +202,16 @@ class Account extends DataClass implements Insertable<Account> {
 
   /// COLUMN: accounts.icon_code_point - Material Icons code point for the account icon.
   final int iconCodePoint;
+
+  /// COLUMN: accounts.is_default - Whether this is the user's default account.
+  final bool isDefault;
   const Account({
     required this.id,
     required this.name,
     required this.currency,
     required this.openingBalanceCents,
     required this.iconCodePoint,
+    required this.isDefault,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -193,6 +221,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['currency'] = Variable<String>(currency);
     map['opening_balance_cents'] = Variable<int>(openingBalanceCents);
     map['icon_code_point'] = Variable<int>(iconCodePoint);
+    map['is_default'] = Variable<bool>(isDefault);
     return map;
   }
 
@@ -203,6 +232,7 @@ class Account extends DataClass implements Insertable<Account> {
       currency: Value(currency),
       openingBalanceCents: Value(openingBalanceCents),
       iconCodePoint: Value(iconCodePoint),
+      isDefault: Value(isDefault),
     );
   }
 
@@ -219,6 +249,7 @@ class Account extends DataClass implements Insertable<Account> {
         json['opening_balance_cents'],
       ),
       iconCodePoint: serializer.fromJson<int>(json['icon_code_point']),
+      isDefault: serializer.fromJson<bool>(json['is_default']),
     );
   }
   @override
@@ -230,6 +261,7 @@ class Account extends DataClass implements Insertable<Account> {
       'currency': serializer.toJson<String>(currency),
       'opening_balance_cents': serializer.toJson<int>(openingBalanceCents),
       'icon_code_point': serializer.toJson<int>(iconCodePoint),
+      'is_default': serializer.toJson<bool>(isDefault),
     };
   }
 
@@ -239,12 +271,14 @@ class Account extends DataClass implements Insertable<Account> {
     String? currency,
     int? openingBalanceCents,
     int? iconCodePoint,
+    bool? isDefault,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
     currency: currency ?? this.currency,
     openingBalanceCents: openingBalanceCents ?? this.openingBalanceCents,
     iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+    isDefault: isDefault ?? this.isDefault,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -259,6 +293,7 @@ class Account extends DataClass implements Insertable<Account> {
           data.iconCodePoint.present
               ? data.iconCodePoint.value
               : this.iconCodePoint,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
     );
   }
 
@@ -269,14 +304,21 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('name: $name, ')
           ..write('currency: $currency, ')
           ..write('openingBalanceCents: $openingBalanceCents, ')
-          ..write('iconCodePoint: $iconCodePoint')
+          ..write('iconCodePoint: $iconCodePoint, ')
+          ..write('isDefault: $isDefault')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, currency, openingBalanceCents, iconCodePoint);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    currency,
+    openingBalanceCents,
+    iconCodePoint,
+    isDefault,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -285,7 +327,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.name == this.name &&
           other.currency == this.currency &&
           other.openingBalanceCents == this.openingBalanceCents &&
-          other.iconCodePoint == this.iconCodePoint);
+          other.iconCodePoint == this.iconCodePoint &&
+          other.isDefault == this.isDefault);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -294,12 +337,14 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<String> currency;
   final Value<int> openingBalanceCents;
   final Value<int> iconCodePoint;
+  final Value<bool> isDefault;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.currency = const Value.absent(),
     this.openingBalanceCents = const Value.absent(),
     this.iconCodePoint = const Value.absent(),
+    this.isDefault = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -307,6 +352,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.currency = const Value.absent(),
     this.openingBalanceCents = const Value.absent(),
     this.iconCodePoint = const Value.absent(),
+    this.isDefault = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Account> custom({
     Expression<int>? id,
@@ -314,6 +360,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<String>? currency,
     Expression<int>? openingBalanceCents,
     Expression<int>? iconCodePoint,
+    Expression<bool>? isDefault,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -322,6 +369,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (openingBalanceCents != null)
         'opening_balance_cents': openingBalanceCents,
       if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
+      if (isDefault != null) 'is_default': isDefault,
     });
   }
 
@@ -331,6 +379,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<String>? currency,
     Value<int>? openingBalanceCents,
     Value<int>? iconCodePoint,
+    Value<bool>? isDefault,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -338,6 +387,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       currency: currency ?? this.currency,
       openingBalanceCents: openingBalanceCents ?? this.openingBalanceCents,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 
@@ -359,6 +409,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (iconCodePoint.present) {
       map['icon_code_point'] = Variable<int>(iconCodePoint.value);
     }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
     return map;
   }
 
@@ -369,7 +422,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('name: $name, ')
           ..write('currency: $currency, ')
           ..write('openingBalanceCents: $openingBalanceCents, ')
-          ..write('iconCodePoint: $iconCodePoint')
+          ..write('iconCodePoint: $iconCodePoint, ')
+          ..write('isDefault: $isDefault')
           ..write(')'))
         .toString();
   }
@@ -1360,6 +1414,7 @@ typedef $AccountsCreateCompanionBuilder =
       Value<String> currency,
       Value<int> openingBalanceCents,
       Value<int> iconCodePoint,
+      Value<bool> isDefault,
     });
 typedef $AccountsUpdateCompanionBuilder =
     AccountsCompanion Function({
@@ -1368,6 +1423,7 @@ typedef $AccountsUpdateCompanionBuilder =
       Value<String> currency,
       Value<int> openingBalanceCents,
       Value<int> iconCodePoint,
+      Value<bool> isDefault,
     });
 
 final class $AccountsReferences
@@ -1423,6 +1479,11 @@ class $AccountsFilterComposer extends Composer<_$BudgetDatabase, Accounts> {
 
   ColumnFilters<int> get iconCodePoint => $composableBuilder(
     column: $table.iconCodePoint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1484,6 +1545,11 @@ class $AccountsOrderingComposer extends Composer<_$BudgetDatabase, Accounts> {
     column: $table.iconCodePoint,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $AccountsAnnotationComposer extends Composer<_$BudgetDatabase, Accounts> {
@@ -1512,6 +1578,9 @@ class $AccountsAnnotationComposer extends Composer<_$BudgetDatabase, Accounts> {
     column: $table.iconCodePoint,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($TransactionsAnnotationComposer a) f,
@@ -1572,12 +1641,14 @@ class $AccountsTableManager
                 Value<String> currency = const Value.absent(),
                 Value<int> openingBalanceCents = const Value.absent(),
                 Value<int> iconCodePoint = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
                 currency: currency,
                 openingBalanceCents: openingBalanceCents,
                 iconCodePoint: iconCodePoint,
+                isDefault: isDefault,
               ),
           createCompanionCallback:
               ({
@@ -1586,12 +1657,14 @@ class $AccountsTableManager
                 Value<String> currency = const Value.absent(),
                 Value<int> openingBalanceCents = const Value.absent(),
                 Value<int> iconCodePoint = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
                 currency: currency,
                 openingBalanceCents: openingBalanceCents,
                 iconCodePoint: iconCodePoint,
+                isDefault: isDefault,
               ),
           withReferenceMapper:
               (p0) =>

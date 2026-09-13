@@ -25,11 +25,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late DateTime _month;
   late Future<BudgetOverview> _overview;
+  late Future<List<AccountSummary>> _accounts;
+  String? _selectedAccountName;
 
   @override
   void initState() {
     super.initState();
     _month = DateTime(DateTime.now().year, DateTime.now().month);
+    _accounts = widget.database.loadAccounts();
+    _refreshSelectedAccountName();
     _overview = widget.database.loadOverview(
       _month,
       accountId: widget.selectedAccountId,
@@ -40,11 +44,31 @@ class _HomeScreenState extends State<HomeScreen> {
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedAccountId != widget.selectedAccountId) {
-      _overview = widget.database.loadOverview(
-        _month,
-        accountId: widget.selectedAccountId,
-      );
+      _refreshSelectedAccountName();
+      setState(() {
+        _overview = widget.database.loadOverview(
+          _month,
+          accountId: widget.selectedAccountId,
+        );
+      });
     }
+    if (oldWidget.currencyCode != widget.currencyCode) {
+      setState(() {
+        _overview = widget.database.loadOverview(
+          _month,
+          accountId: widget.selectedAccountId,
+        );
+      });
+    }
+  }
+
+  Future<void> _refreshSelectedAccountName() async {
+    final accounts = await _accounts;
+    if (!mounted) return;
+    final selectedAccount = accounts
+        .where((account) => account.id == widget.selectedAccountId)
+        .firstOrNull;
+    setState(() => _selectedAccountName = selectedAccount?.name);
   }
 
   Future<void> _showAccountPicker(BuildContext context) async {
@@ -117,7 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: FilledButton(
               onPressed:
                   () => setState(
-                    () => _overview = widget.database.loadOverview(_month),
+                    () => _overview = widget.database.loadOverview(
+                      _month,
+                      accountId: widget.selectedAccountId,
+                    ),
                   ),
               child: const Text('Retry loading overview'),
             ),
@@ -128,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return _OverviewContent(
           overview: overview,
           currencyCode: widget.currencyCode,
+          accountName: _selectedAccountName,
           onPreviousMonth: () => _changeMonth(-1),
           onNextMonth: () => _changeMonth(1),
           onAccountChanged: () => _showAccountPicker(context),
@@ -143,6 +171,7 @@ class _OverviewContent extends StatelessWidget {
     required this.onPreviousMonth,
     required this.onNextMonth,
     required this.currencyCode,
+    required this.accountName,
     required this.onAccountChanged,
   });
 
@@ -150,6 +179,7 @@ class _OverviewContent extends StatelessWidget {
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
   final String currencyCode;
+  final String? accountName;
   final VoidCallback onAccountChanged;
 
   @override
@@ -161,6 +191,7 @@ class _OverviewContent extends StatelessWidget {
             month: overview.month,
             balance: overview.remainingBalance,
             currencyCode: currencyCode,
+            accountName: accountName,
             onPreviousMonth: onPreviousMonth,
             onNextMonth: onNextMonth,
             onAccountChanged: onAccountChanged,
@@ -202,6 +233,7 @@ class _OverviewHeader extends StatelessWidget {
     required this.onPreviousMonth,
     required this.onNextMonth,
     required this.currencyCode,
+    required this.accountName,
     required this.onAccountChanged,
   });
 
@@ -210,6 +242,7 @@ class _OverviewHeader extends StatelessWidget {
   final VoidCallback onPreviousMonth;
   final VoidCallback onNextMonth;
   final String currencyCode;
+  final String? accountName;
   final VoidCallback onAccountChanged;
 
   @override
@@ -264,12 +297,22 @@ class _OverviewHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          TextButton.icon(
-            onPressed: onAccountChanged,
-            icon: const Icon(Icons.expand_more, color: Colors.white),
-            label: const Text(
-              'All Accounts',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+          InkWell(
+            onTap: onAccountChanged,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.expand_more, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    accountName ?? 'All Accounts',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

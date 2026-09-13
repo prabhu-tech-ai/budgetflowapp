@@ -24,13 +24,17 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
 
   Future<void> _saveCategory() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty || _selectedIcon == null) {
+    if (name.length < 2 || _selectedIcon == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(
         SnackBar(
           content: Text(
-            name.isEmpty ? 'Enter a category name' : 'Select a category icon',
+            name.isEmpty
+                ? 'Enter a category name'
+                : name.length < 2
+                    ? 'Category name must be at least 2 characters'
+                    : 'Select a category icon',
           ),
         ),
       );
@@ -59,7 +63,7 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
         title: const Text('New Category'),
         actions: [
           TextButton(
-            onPressed: _nameController.text.trim().isNotEmpty &&
+            onPressed: _nameController.text.trim().length >= 2 &&
                     _selectedIcon != null
                 ? _saveCategory
                 : null,

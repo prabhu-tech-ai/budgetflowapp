@@ -365,9 +365,12 @@ class _MonthHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
-          IconButton(
-            onPressed: onAccount,
-            icon: const Icon(Icons.person_outline, color: Colors.white),
+          Tooltip(
+            message: 'Filter by account',
+            child: IconButton(
+              onPressed: onAccount,
+              icon: const Icon(Icons.person_outline, color: Colors.white),
+            ),
           ),
           IconButton(
             onPressed: onPrevious,
