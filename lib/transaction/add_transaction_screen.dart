@@ -126,9 +126,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const ListTile(title: Text('Choose Account')),
             for (final account in accounts)
               ListTile(
-                leading: Icon(
-                  IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
-                ),
+                leading: const Icon(Icons.group_outlined),
                 title: Text(account.name),
                 trailing: account.id == _accountId
                     ? const Icon(Icons.check)

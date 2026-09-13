@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../core/utils.dart';
+
 part 'budget_database.g.dart';
 
 @DriftDatabase(include: {'schema.drift'})
@@ -49,8 +51,8 @@ class BudgetDatabase extends _$BudgetDatabase {
         .then((rows) => rows.firstOrNull);
     if (existingAccount == null) {
       await customInsert(
-        "INSERT INTO accounts (name) VALUES ('Default Account')",
-        variables: [],
+        "INSERT INTO accounts (name, icon_code_point) VALUES ('Default Account', ?)",
+        variables: [Variable(AppUtils.accountIconCodePoint)],
         updates: {accounts},
       );
     }
@@ -220,7 +222,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     required String name,
     String currency = 'INR',
     int openingBalanceCents = 0,
-    int iconCodePoint = 0xe7fe,
+    int iconCodePoint = AppUtils.accountIconCodePoint,
   }) => customInsert(
     'INSERT INTO accounts (name, currency, opening_balance_cents, icon_code_point) VALUES (?, ?, ?, ?)',
     variables: [

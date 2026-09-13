@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 class AppUtils {
   AppUtils._();
 
+  static const accountIconCodePoint = Icons.group_outlined.codePoint;
+
   static final headerColorScheme = ColorScheme.fromSeed(
     seedColor: Colors.teal,
     brightness: Brightness.light,

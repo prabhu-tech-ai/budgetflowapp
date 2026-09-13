@@ -149,9 +149,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             for (final account in accounts)
               ListTile(
-                leading: Icon(
-                  IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
-                ),
+                leading: const Icon(Icons.group_outlined),
                 title: Text(account.name),
                 trailing: account.id == widget.selectedAccountId
                     ? const Icon(Icons.check)

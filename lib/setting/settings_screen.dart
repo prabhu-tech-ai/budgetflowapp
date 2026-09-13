@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/currency.dart';
+import '../core/utils.dart';
 import '../database/budget_database.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -183,9 +184,7 @@ class SettingsScreen extends StatelessWidget {
                   const Text('No accounts yet'),
                 for (final account in accounts)
                   ListTile(
-                    leading: Icon(
-                      IconData(account.iconCodePoint, fontFamily: 'MaterialIcons'),
-                    ),
+                    leading: const Icon(Icons.group_outlined),
                     title: Text(account.name),
                     trailing:
                         account.id == selectedAccountId
@@ -229,8 +228,6 @@ class SettingsScreen extends StatelessWidget {
 
   Future<Map<String, dynamic>?> _showAddAccountDialog(BuildContext context) async {
     final controller = TextEditingController();
-    var selectedIcon = 0xe7fe;
-    final icons = [0xe7fe, 0xe88a, 0xe25d, 0xe0af, 0xe8d1];
 
     return showDialog<Map<String, dynamic>>(
       context: context,
@@ -250,19 +247,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final icon in icons)
-                        ChoiceChip(
-                          label: Icon(
-                            IconData(icon, fontFamily: 'MaterialIcons'),
-                            size: 22,
-                          ),
-                          selected: selectedIcon == icon,
-                          onSelected: (_) => setState(() => selectedIcon = icon),
-                        ),
-                    ],
+                  const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.group_outlined),
+                    title: Text('Account icon'),
+                    subtitle: Text('Multi-user icon'),
                   ),
                 ],
               ),
@@ -278,7 +267,7 @@ class SettingsScreen extends StatelessWidget {
                     Navigator.pop(dialogContext, {
                       'name': name,
                       'currency': 'INR',
-                      'iconCodePoint': selectedIcon,
+                      'iconCodePoint': AppUtils.accountIconCodePoint,
                     });
                   },
                   child: const Text('Save'),
